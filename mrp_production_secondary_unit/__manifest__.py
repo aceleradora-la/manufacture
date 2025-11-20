@@ -18,6 +18,7 @@
     "data": [
         "views/mrp_production_views.xml",
         "views/mrp_production_pivot_views.xml",
+        "views/mrp_unbuild_views.xml",
         "views/stock_move_views.xml",
     ],
 }

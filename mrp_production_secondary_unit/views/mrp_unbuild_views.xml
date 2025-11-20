@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="mrp_unbuild_form_view_secondary_unit" model="ir.ui.view">
+        <field name="name">MRP Unbuild Form with Secondary Unit</field>
+        <field name="model">mrp.unbuild</field>
+        <field name="inherit_id" ref="mrp.mrp_unbuild_form_view" />
+        <field name="arch" type="xml">
+            <field name="product_qty" position="after">
+                <field name="secondary_uom_id" />
+                <field name="secondary_uom_qty" />
+            </field>
+        </field>
+    </record>
+</odoo>
+
