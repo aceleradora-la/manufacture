@@ -15,5 +15,12 @@
             </pivot>
         </field>
     </record>
+    
+    <!-- Ensure pivot view is available in the action -->
+    <!-- Inherit the standard mrp.production action to ensure pivot is in view_mode -->
+    <record id="mrp_production_action_secondary_unit" model="ir.actions.act_window">
+        <field name="inherit_id" ref="mrp.mrp_production_action"/>
+        <field name="view_mode">tree,form,calendar,pivot,graph,kanban</field>
+    </record>
 </odoo>
 
