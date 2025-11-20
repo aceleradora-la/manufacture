@@ -9,7 +9,7 @@
             <pivot string="Production Analysis">
                 <field name="product_id" type="row"/>
                 <field name="state" type="row"/>
-                <field name="date_planned_start" interval="month" type="col"/>
+                <field name="date_start" interval="month" type="col"/>
                 <field name="product_qty" type="measure" string="Quantity"/>
                 <field name="secondary_uom_qty" type="measure" string="Secondary Quantity"/>
             </pivot>
