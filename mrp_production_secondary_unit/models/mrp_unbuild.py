@@ -10,7 +10,7 @@ class MrpUnbuild(models.Model):
     secondary_uom_id = fields.Many2one(
         comodel_name="product.secondary.unit",
         string="Secondary UoM",
-        domain="[('product_tmpl_id', '=', product_tmpl_id)]",
+        domain="[('product_tmpl_id', '=', product_id.product_tmpl_id)]",
         help="Secondary unit of measure for the product to unbuild",
     )
     secondary_uom_qty = fields.Float(
