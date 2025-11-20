@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Extend Production Analysis Pivot View to include secondary unit quantities -->
+    <!-- Try to inherit from standard pivot view if it exists -->
+    <record id="mrp_production_pivot_view_secondary_unit" model="ir.ui.view">
+        <field name="name">MRP Production Pivot with Secondary Unit</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_pivot_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//pivot" position="inside">
+                <field name="secondary_uom_qty" type="measure" string="Secondary Quantity"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Alternative: If the pivot view is accessed through action, extend it directly -->
+    <!-- This will work if the view is defined in the action or menu -->
+    <record id="view_mrp_production_pivot_secondary_unit" model="ir.ui.view">
+        <field name="name">mrp.production.pivot.secondary.unit</field>
+        <field name="model">mrp.production</field>
+        <field name="arch" type="xml">
+            <pivot string="Production Analysis">
+                <field name="secondary_uom_qty" type="measure" string="Secondary Quantity"/>
+            </pivot>
+        </field>
+    </record>
+</odoo>
+

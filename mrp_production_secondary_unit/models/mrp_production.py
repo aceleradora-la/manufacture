@@ -17,6 +17,7 @@ class MrpProduction(models.Model):
         string="Secondary Qty",
         digits="Product Unit of Measure",
         help="Quantity in secondary unit of measure",
+        store=True,
     )
 
     @api.onchange("product_id", "product_qty")
