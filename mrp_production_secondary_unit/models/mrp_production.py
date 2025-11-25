@@ -58,19 +58,14 @@ class MrpProduction(models.Model):
                 # Get the secondary UoM
                 secondary_uom = production.secondary_uom_id.uom_id
                 
-                # Convert quantity from order UoM to base UoM
-                qty_in_base_uom = order_uom._compute_quantity(
-                    production.product_qty, base_uom, rounding_method='HALF-UP'
-                )
-                
-                # If secondary UoM is the same as order UoM, factor is 1
+                # If secondary UoM is the same as order UoM, quantity is the same
                 if secondary_uom.id == order_uom.id:
                     production.secondary_uom_qty = production.product_qty
-                # If secondary UoM is the same as base UoM, use the factor directly
-                elif secondary_uom.id == base_uom.id:
-                    # Factor is defined relative to base UoM, so if secondary = base, factor should be 1
-                    production.secondary_uom_qty = qty_in_base_uom
                 else:
+                    # Convert quantity from order UoM to base UoM
+                    qty_in_base_uom = order_uom._compute_quantity(
+                        production.product_qty, base_uom, rounding_method='HALF-UP'
+                    )
                     # Convert from base UoM to secondary UoM using the factor
                     # Factor is defined as: 1 base UoM = factor secondary UoM
                     production.secondary_uom_qty = (
