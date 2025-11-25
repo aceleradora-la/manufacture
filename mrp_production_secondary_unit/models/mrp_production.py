@@ -29,12 +29,19 @@ class MrpProduction(models.Model):
             return
         # Get secondary unit from product template if available
         # Only set the unit, don't calculate quantity until confirmation
-        if hasattr(self.product_id.product_tmpl_id, "secondary_uom_ids"):
-            secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
-            if secondary_uom:
-                self.secondary_uom_id = secondary_uom
-                # Don't calculate quantity here - wait until confirmation
-                self.secondary_uom_qty = 0.0
+        # Use safe access to avoid errors during record creation
+        try:
+            product_tmpl = self.product_id.product_tmpl_id
+            if product_tmpl and hasattr(product_tmpl, "secondary_uom_ids"):
+                secondary_uom = product_tmpl.secondary_uom_ids[:1]
+                if secondary_uom:
+                    self.secondary_uom_id = secondary_uom
+                    # Don't calculate quantity here - wait until confirmation
+                    self.secondary_uom_qty = 0.0
+        except Exception:
+            # If there's any error accessing the product, just clear the fields
+            self.secondary_uom_id = False
+            self.secondary_uom_qty = 0.0
 
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity from product quantity."""
