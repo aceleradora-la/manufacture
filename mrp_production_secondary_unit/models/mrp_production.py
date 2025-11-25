@@ -20,29 +20,21 @@ class MrpProduction(models.Model):
         store=True,
     )
 
-    @api.onchange("product_id", "product_qty")
+    @api.onchange("product_id")
     def _onchange_product_id_secondary_unit(self):
-        """Update secondary unit when product or quantity changes."""
+        """Set secondary unit when product changes (but don't calculate quantity yet)."""
         if not self.product_id:
             self.secondary_uom_id = False
             self.secondary_uom_qty = 0.0
             return
         # Get secondary unit from product template if available
+        # Only set the unit, don't calculate quantity until confirmation
         if hasattr(self.product_id.product_tmpl_id, "secondary_uom_ids"):
             secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
                 self.secondary_uom_id = secondary_uom
-                self._compute_secondary_uom_qty()
-
-    @api.onchange("secondary_uom_id", "secondary_uom_qty")
-    def _onchange_secondary_uom(self):
-        """Update product quantity when secondary unit changes."""
-        if self.secondary_uom_id and self.secondary_uom_qty:
-            factor = self.secondary_uom_id.factor
-            if factor:
-                # Convert from secondary to primary: divide by factor
-                # Example: 180 Huevos / 30 = 6 Maple
-                self.product_qty = self.secondary_uom_qty / factor
+                # Don't calculate quantity here - wait until confirmation
+                self.secondary_uom_qty = 0.0
 
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity from product quantity."""
@@ -69,12 +61,19 @@ class MrpProduction(models.Model):
         return production
 
     def write(self, vals):
-        """Compute secondary quantity on write."""
+        """Don't auto-compute secondary quantity on write during editing."""
+        # Only compute if explicitly requested or if order is confirmed
         res = super().write(vals)
-        if "product_qty" in vals and not vals.get("secondary_uom_qty"):
-            for production in self:
-                if production.secondary_uom_id:
-                    production._compute_secondary_uom_qty()
+        # Don't auto-calculate during editing - only on confirmation
+        return res
+
+    def action_confirm(self):
+        """Calculate secondary unit quantity when confirming the order."""
+        res = super().action_confirm()
+        for production in self:
+            # Calculate secondary quantity only when confirming
+            if production.secondary_uom_id and production.product_qty:
+                production._compute_secondary_uom_qty()
         return res
 
     def _get_move_finished_values(
