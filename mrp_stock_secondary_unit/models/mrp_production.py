@@ -38,43 +38,32 @@ class MrpProduction(models.Model):
         product_uom_qty,
         product_uom,
         operation_id=False,
+        byproduct_id=False,
+        cost_share=0,
     ):
-        """Add secondary unit info to finished product moves."""
+        """Add secondary unit info to finished product and byproduct moves."""
         values = super()._get_move_finished_values(
             product_id=product_id,
             product_uom_qty=product_uom_qty,
             product_uom=product_uom,
             operation_id=operation_id,
+            byproduct_id=byproduct_id,
+            cost_share=cost_share,
         )
-        # Transfer secondary unit from production order
-        if self.secondary_uom_id:
+        # For byproducts, get secondary unit from byproduct product itself
+        if byproduct_id:
+            if product_id and hasattr(product_id.product_tmpl_id, "secondary_uom_ids"):
+                secondary_uom = product_id.product_tmpl_id.secondary_uom_ids[:1]
+                if secondary_uom:
+                    values["secondary_uom_id"] = secondary_uom.id
+                    if secondary_uom.factor:
+                        values["secondary_uom_qty"] = product_uom_qty / secondary_uom.factor
+        # For main finished product, transfer secondary unit from production order
+        elif self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
             if self.secondary_uom_qty:
                 values["secondary_uom_qty"] = self.secondary_uom_qty
             elif self.secondary_uom_id.factor:
                 values["secondary_uom_qty"] = product_uom_qty / self.secondary_uom_id.factor
-        return values
-
-    def _get_move_byproduct_values(
-        self,
-        product_id,
-        product_uom_qty,
-        product_uom,
-        operation_id=False,
-    ):
-        """Add secondary unit info to byproduct moves."""
-        values = super()._get_move_byproduct_values(
-            product_id=product_id,
-            product_uom_qty=product_uom_qty,
-            product_uom=product_uom,
-            operation_id=operation_id,
-        )
-        # Get secondary unit from byproduct product itself
-        if product_id and hasattr(product_id.product_tmpl_id, "secondary_uom_ids"):
-            secondary_uom = product_id.product_tmpl_id.secondary_uom_ids[:1]
-            if secondary_uom:
-                values["secondary_uom_id"] = secondary_uom.id
-                if secondary_uom.factor:
-                    values["secondary_uom_qty"] = product_uom_qty / secondary_uom.factor
         return values
 
