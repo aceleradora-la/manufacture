@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Production Order Form View -->
+    <record id="mrp_production_form_view_secondary_unit" model="ir.ui.view">
+        <field name="name">mrp.production.form.secondary.unit</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <!-- Add secondary unit fields after product_qty -->
+            <field name="product_qty" position="after">
+                <field name="secondary_uom_id" options="{'no_create': True}"/>
+                <field name="secondary_uom_qty"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Raw Materials Tree View -->
+    <record id="mrp_production_form_view_raw_materials_secondary_unit" model="ir.ui.view">
+        <field name="name">mrp.production.raw.materials.secondary.unit</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='move_raw_ids']//tree//field[@name='product_uom_qty']" position="after">
+                <field name="secondary_uom_id" options="{'no_create': True}"/>
+                <field name="secondary_uom_qty"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Finished Products Tree View -->
+    <record id="mrp_production_form_view_finished_products_secondary_unit" model="ir.ui.view">
+        <field name="name">mrp.production.finished.products.secondary.unit</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='move_finished_ids']//tree//field[@name='product_uom_qty']" position="after">
+                <field name="secondary_uom_id" options="{'no_create': True}"/>
+                <field name="secondary_uom_qty"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+

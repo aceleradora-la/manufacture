@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock Move Form View -->
+    <record id="stock_move_form_view_secondary_unit" model="ir.ui.view">
+        <field name="name">stock.move.form.secondary.unit</field>
+        <field name="model">stock.move</field>
+        <field name="inherit_id" ref="stock.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- Add secondary unit fields after product_uom_qty -->
+            <field name="product_uom_qty" position="after">
+                <field name="secondary_uom_id" options="{'no_create': True}"/>
+                <field name="secondary_uom_qty"/>
+            </field>
+        </field>
+    </record>
+</odoo>
+

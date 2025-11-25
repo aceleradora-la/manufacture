@@ -1,0 +1,26 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+#	* mrp_production_secondary_unit
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-25 12:00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: mrp_production_secondary_unit
+#: model:ir.model.fields,field_description:mrp_production_secondary_unit.field_mrp_production__secondary_uom_id
+msgid "Secondary UoM"
+msgstr ""
+
+#. module: mrp_production_secondary_unit
+#: model:ir.model.fields,field_description:mrp_production_secondary_unit.field_mrp_production__secondary_uom_qty
+msgid "Secondary Quantity"
+msgstr ""
+
