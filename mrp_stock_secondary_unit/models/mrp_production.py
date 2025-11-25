@@ -36,37 +36,21 @@ class MrpProduction(models.Model):
     def _get_move_finished_values(
         self,
         product_id,
-        product_qty,
+        product_uom_qty,
         product_uom,
-        location_dest_id,
-        name,
-        origin,
+        operation_id=False,
         byproduct_id=False,
         cost_share=0,
     ):
         """Add secondary unit info to finished product moves."""
-        # Handle different method signatures
-        try:
-            values = super()._get_move_finished_values(
-                product_id,
-                product_qty,
-                product_uom,
-                location_dest_id,
-                name,
-                origin,
-                byproduct_id=byproduct_id,
-                cost_share=cost_share,
-            )
-        except TypeError:
-            # Fallback for different Odoo versions
-            values = super()._get_move_finished_values(
-                product_id,
-                product_qty,
-                product_uom,
-                location_dest_id,
-                name,
-                origin,
-            )
+        values = super()._get_move_finished_values(
+            product_id,
+            product_uom_qty,
+            product_uom,
+            operation_id=operation_id,
+            byproduct_id=byproduct_id,
+            cost_share=cost_share,
+        )
         
         # For main finished product, use production order secondary unit
         if not byproduct_id and self.secondary_uom_id:
