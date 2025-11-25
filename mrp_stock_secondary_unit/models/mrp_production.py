@@ -28,8 +28,10 @@ class MrpProduction(models.Model):
             secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
                 values["secondary_uom_id"] = secondary_uom.id
-                if secondary_uom.factor:
-                    values["secondary_uom_qty"] = product_uom_qty / secondary_uom.factor
+                if secondary_uom.factor and product_uom_qty:
+                    # Calculate secondary quantity: primary * factor
+                    # Example: 6 Maple * 30 = 180 Huevos
+                    values["secondary_uom_qty"] = product_uom_qty * secondary_uom.factor
         return values
 
     def _get_move_finished_values(
@@ -79,8 +81,10 @@ class MrpProduction(models.Model):
                 secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
                 if secondary_uom:
                     values["secondary_uom_id"] = secondary_uom.id
-                    if secondary_uom.factor:
-                        values["secondary_uom_qty"] = product_uom_qty / secondary_uom.factor
+                    if secondary_uom.factor and product_uom_qty:
+                        # Calculate secondary quantity: primary * factor
+                        # Example: 6 Maple * 30 = 180 Huevos
+                        values["secondary_uom_qty"] = product_uom_qty * secondary_uom.factor
         # For main finished product, transfer secondary unit from production order
         # Check if it's the main product (not a byproduct)
         elif product and product.id == self.product_id.id and self.secondary_uom_id:

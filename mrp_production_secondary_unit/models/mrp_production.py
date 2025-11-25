@@ -40,7 +40,9 @@ class MrpProduction(models.Model):
         if self.secondary_uom_id and self.secondary_uom_qty:
             factor = self.secondary_uom_id.factor
             if factor:
-                self.product_qty = self.secondary_uom_qty * factor
+                # Convert from secondary to primary: divide by factor
+                # Example: 180 Huevos / 30 = 6 Maple
+                self.product_qty = self.secondary_uom_qty / factor
 
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity from product quantity."""

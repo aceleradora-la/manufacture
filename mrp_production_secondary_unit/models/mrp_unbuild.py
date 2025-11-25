@@ -46,7 +46,9 @@ class MrpUnbuild(models.Model):
         if self.secondary_uom_id and self.secondary_uom_qty:
             factor = self.secondary_uom_id.factor
             if factor:
-                self.product_qty = self.secondary_uom_qty * factor
+                # Convert from secondary to primary: divide by factor
+                # Example: 180 Huevos / 30 = 6 Maple
+                self.product_qty = self.secondary_uom_qty / factor
 
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity from product quantity."""
@@ -56,8 +58,10 @@ class MrpUnbuild(models.Model):
                 and unbuild.product_qty
                 and unbuild.secondary_uom_id.factor
             ):
+                # Convert from primary to secondary: multiply by factor
+                # Example: 6 Maple * 30 = 180 Huevos
                 unbuild.secondary_uom_qty = (
-                    unbuild.product_qty / unbuild.secondary_uom_id.factor
+                    unbuild.product_qty * unbuild.secondary_uom_id.factor
                 )
             else:
                 unbuild.secondary_uom_qty = 0.0

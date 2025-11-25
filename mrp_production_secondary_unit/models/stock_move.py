@@ -55,7 +55,9 @@ class StockMove(models.Model):
         if self.secondary_uom_id and self.secondary_uom_qty:
             factor = self.secondary_uom_id.factor
             if factor:
-                self.product_uom_qty = self.secondary_uom_qty * factor
+                # Convert from secondary to primary: divide by factor
+                # Example: 180 Huevos / 30 = 6 Maple
+                self.product_uom_qty = self.secondary_uom_qty / factor
 
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity from product quantity."""
@@ -65,8 +67,10 @@ class StockMove(models.Model):
                 and move.product_uom_qty
                 and move.secondary_uom_id.factor
             ):
+                # Convert from primary to secondary: multiply by factor
+                # Example: 6 Maple * 30 = 180 Huevos
                 move.secondary_uom_qty = (
-                    move.product_uom_qty / move.secondary_uom_id.factor
+                    move.product_uom_qty * move.secondary_uom_id.factor
                 )
             else:
                 move.secondary_uom_qty = 0.0
