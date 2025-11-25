@@ -44,7 +44,11 @@ class MrpProduction(models.Model):
             self.secondary_uom_qty = 0.0
 
     def _compute_secondary_uom_qty(self):
-        """Compute secondary quantity from product quantity, considering UoM conversion."""
+        """Compute secondary quantity from product quantity, considering UoM conversion.
+        
+        This follows the same logic as product.secondary.unit.mixin._get_factor_line()
+        to maintain consistency across all secondary unit calculations.
+        """
         for production in self:
             if (
                 production.secondary_uom_id
@@ -55,22 +59,24 @@ class MrpProduction(models.Model):
                 order_uom = production.product_uom_id or production.product_id.uom_id
                 # Get the base UoM of the product
                 base_uom = production.product_id.uom_id
-                # Get the secondary UoM
-                secondary_uom = production.secondary_uom_id.uom_id
                 
-                # If secondary UoM is the same as order UoM, quantity is the same
-                if secondary_uom.id == order_uom.id:
-                    production.secondary_uom_qty = production.product_qty
+                # Calculate factor following mixin logic:
+                # factor = secondary_uom.factor * (order_uom.factor if order_uom != base_uom else 1.0)
+                if order_uom.id != base_uom.id:
+                    # Convert order UoM to base UoM factor
+                    # order_uom.factor is the conversion factor from base to order UoM
+                    # We need the inverse: from order to base
+                    uom_factor = base_uom._compute_quantity(1.0, order_uom)
+                    factor = production.secondary_uom_id.factor * uom_factor
                 else:
-                    # Convert quantity from order UoM to base UoM
-                    qty_in_base_uom = order_uom._compute_quantity(
-                        production.product_qty, base_uom, rounding_method='HALF-UP'
-                    )
-                    # Convert from base UoM to secondary UoM using the factor
-                    # Factor is defined as: 1 base UoM = factor secondary UoM
-                    production.secondary_uom_qty = (
-                        qty_in_base_uom * production.secondary_uom_id.factor
-                    )
+                    factor = production.secondary_uom_id.factor
+                
+                # Calculate secondary quantity: qty / factor (following mixin logic)
+                from odoo.tools.float_utils import float_round
+                production.secondary_uom_qty = float_round(
+                    production.product_qty / (factor or 1.0),
+                    precision_rounding=production.secondary_uom_id.uom_id.rounding,
+                )
             else:
                 production.secondary_uom_qty = 0.0
 
