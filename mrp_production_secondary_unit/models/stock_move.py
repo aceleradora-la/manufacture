@@ -33,9 +33,18 @@ class StockMove(models.Model):
                 if secondary_uom:
                     self.secondary_uom_id = secondary_uom
                     self._compute_secondary_uom_qty()
-        # For finished products, get from production order
-        elif self.production_id and hasattr(self.production_id, "secondary_uom_id"):
-            if self.production_id.secondary_uom_id:
+        # For finished products and byproducts, get from production order or product
+        elif self.production_id:
+            # Check if it's a byproduct (different from main product)
+            if self.product_id != self.production_id.product_id:
+                # For byproducts, get secondary unit from product
+                if hasattr(self.product_id.product_tmpl_id, "secondary_uom_ids"):
+                    secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
+                    if secondary_uom:
+                        self.secondary_uom_id = secondary_uom
+                        self._compute_secondary_uom_qty()
+            # For main finished product, get from production order
+            elif hasattr(self.production_id, "secondary_uom_id") and self.production_id.secondary_uom_id:
                 self.secondary_uom_id = self.production_id.secondary_uom_id.id
                 if self.production_id.secondary_uom_qty:
                     self.secondary_uom_qty = self.production_id.secondary_uom_qty

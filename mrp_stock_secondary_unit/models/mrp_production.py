@@ -82,7 +82,8 @@ class MrpProduction(models.Model):
                     if secondary_uom.factor:
                         values["secondary_uom_qty"] = product_uom_qty / secondary_uom.factor
         # For main finished product, transfer secondary unit from production order
-        elif self.secondary_uom_id and product.id == self.product_id.id:
+        # Check if it's the main product (not a byproduct)
+        elif product and product.id == self.product_id.id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
             if self.secondary_uom_qty:
                 values["secondary_uom_qty"] = self.secondary_uom_qty
