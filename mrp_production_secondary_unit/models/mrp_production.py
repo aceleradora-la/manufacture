@@ -84,10 +84,55 @@ class MrpProduction(models.Model):
                 else:
                     # Order UoM is different from both base and secondary UoM
                     # Convert directly from order UoM to secondary UoM
-                    # Do NOT use the factor (which is relative to base UoM)
-                    production.secondary_uom_qty = order_uom._compute_quantity(
-                        production.product_qty, secondary_uom, rounding_method='HALF-UP'
-                    )
+                    # The factor in secondary_uom_id is relative to BASE UoM, not to order UoM
+                    # So we need to convert order -> reference -> secondary
+                    # OR convert order -> base -> secondary (but that would use the factor incorrectly)
+                    # OR convert directly order -> secondary using UoM category factors
+                    
+                    # Best approach: convert through the reference unit of the category
+                    # All UoMs in a category have factors relative to the reference unit (factor = 1.0)
+                    category = order_uom.category_id
+                    if category and secondary_uom.category_id.id == category.id:
+                        # Both are in the same category, we can convert directly
+                        # Find reference unit (factor = 1.0)
+                        reference_uoms = category.uom_ids.filtered(lambda u: abs(u.factor - 1.0) < 0.0001)
+                        if reference_uoms:
+                            reference_uom = reference_uoms[0]
+                            # Convert: order -> reference -> secondary
+                            # order.factor = units of reference per 1 order unit
+                            # secondary.factor = units of reference per 1 secondary unit
+                            # So: qty_secondary = (qty_order * order.factor) / secondary.factor
+                            
+                            # But secondary.factor in product.secondary.unit is relative to BASE!
+                            # We need secondary.factor relative to reference
+                            # If base.factor = 360 and secondary = reference (factor = 1), then:
+                            # secondary_uom.factor (in product.secondary.unit) = 360 (base to secondary)
+                            # But we need: secondary relative to reference
+                            
+                            # Actually, if secondary is the reference unit:
+                            if abs(secondary_uom.factor - 1.0) < 0.0001:
+                                # Secondary is reference, so: qty_secondary = qty_order * order.factor
+                                production.secondary_uom_qty = production.product_qty * order_uom.factor
+                            else:
+                                # Secondary is not reference, need to find its factor relative to reference
+                                # secondary.factor in UoM model = units of reference per 1 secondary
+                                # So: qty_secondary = (qty_order * order.factor) / secondary.factor
+                                if secondary_uom.factor:
+                                    production.secondary_uom_qty = (
+                                        production.product_qty * order_uom.factor / secondary_uom.factor
+                                    )
+                                else:
+                                    production.secondary_uom_qty = 0.0
+                        else:
+                            # No reference unit found, fallback to direct conversion
+                            production.secondary_uom_qty = order_uom._compute_quantity(
+                                production.product_qty, secondary_uom, rounding_method='HALF-UP'
+                            )
+                    else:
+                        # Different categories, use direct conversion
+                        production.secondary_uom_qty = order_uom._compute_quantity(
+                            production.product_qty, secondary_uom, rounding_method='HALF-UP'
+                        )
             else:
                 production.secondary_uom_qty = 0.0
 
