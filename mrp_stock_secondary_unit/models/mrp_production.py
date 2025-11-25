@@ -31,7 +31,9 @@ class MrpProduction(models.Model):
                 if secondary_uom.factor and product_uom_qty:
                     # Calculate secondary quantity considering UoM conversion
                     # product_uom is the UoM used in the move (may differ from product base UoM)
-                    # secondary_uom.factor is relative to product base UoM
+                    # Convert to record if it's an ID
+                    if isinstance(product_uom, int):
+                        product_uom = self.env["uom.uom"].browse(product_uom)
                     base_uom = product.uom_id
                     secondary_uom_record = secondary_uom.uom_id
                     
@@ -167,6 +169,9 @@ class MrpProduction(models.Model):
             elif self.secondary_uom_id.factor and product_uom_qty:
                 # Calculate secondary quantity considering UoM conversion
                 # product_uom is the UoM used in the move (may differ from product base UoM)
+                # Convert to record if it's an ID
+                if isinstance(product_uom, int):
+                    product_uom = self.env["uom.uom"].browse(product_uom)
                 base_uom = product.uom_id
                 secondary_uom_record = self.secondary_uom_id.uom_id
                 
