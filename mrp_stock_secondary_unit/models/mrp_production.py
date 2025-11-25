@@ -24,7 +24,11 @@ class MrpProduction(models.Model):
             bom_line=bom_line,
         )
         # Get secondary unit from product if available
-        product = self.env["product.product"].browse(product_id)
+        # product_id can be an ID or a recordset
+        if isinstance(product_id, (int,)):
+            product = self.env["product.product"].browse(product_id)
+        else:
+            product = product_id
         if product and hasattr(product.product_tmpl_id, "secondary_uom_ids"):
             secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
@@ -56,7 +60,11 @@ class MrpProduction(models.Model):
             values["secondary_uom_qty"] = self.secondary_uom_qty
         # For byproducts, get from product
         elif byproduct_id:
-            product = self.env["product.product"].browse(product_id)
+            # product_id can be an ID or a recordset
+            if isinstance(product_id, (int,)):
+                product = self.env["product.product"].browse(product_id)
+            else:
+                product = product_id
             if product and hasattr(product.product_tmpl_id, "secondary_uom_ids"):
                 secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
                 if secondary_uom:
