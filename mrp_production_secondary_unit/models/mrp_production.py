@@ -48,6 +48,12 @@ class MrpProduction(models.Model):
         
         This follows the same logic as product.secondary.unit.mixin._get_factor_line()
         to maintain consistency across all secondary unit calculations.
+        
+        The mixin calculates: qty_secondary = qty_line / factor
+        where factor = secondary_uom.factor * (uom_line.factor if uom_line != base_uom else 1.0)
+        
+        But we want: qty_secondary = qty_line * effective_factor
+        where effective_factor accounts for conversion from order UoM to secondary UoM
         """
         for production in self:
             if (
@@ -59,24 +65,33 @@ class MrpProduction(models.Model):
                 order_uom = production.product_uom_id or production.product_id.uom_id
                 # Get the base UoM of the product
                 base_uom = production.product_id.uom_id
+                # Get the secondary UoM
+                secondary_uom = production.secondary_uom_id.uom_id
                 
-                # Calculate factor following mixin logic:
-                # factor = secondary_uom.factor * (order_uom.factor if order_uom != base_uom else 1.0)
-                if order_uom.id != base_uom.id:
-                    # Convert order UoM to base UoM factor
-                    # order_uom.factor is the conversion factor from base to order UoM
-                    # We need the inverse: from order to base
-                    uom_factor = base_uom._compute_quantity(1.0, order_uom)
-                    factor = production.secondary_uom_id.factor * uom_factor
+                # If secondary UoM is the same as order UoM, quantity is the same
+                if secondary_uom.id == order_uom.id:
+                    production.secondary_uom_qty = production.product_qty
                 else:
-                    factor = production.secondary_uom_id.factor
-                
-                # Calculate secondary quantity: qty / factor (following mixin logic)
-                from odoo.tools.float_utils import float_round
-                production.secondary_uom_qty = float_round(
-                    production.product_qty / (factor or 1.0),
-                    precision_rounding=production.secondary_uom_id.uom_id.rounding,
-                )
+                    # Calculate effective factor following mixin pattern:
+                    # Convert from order UoM to base UoM, then to secondary UoM
+                    # Factor in mixin: secondary_uom.factor * (order_uom.factor if order_uom != base_uom else 1.0)
+                    # But we need: qty_secondary = qty_order * effective_factor
+                    # effective_factor = (base_to_secondary) / (order_to_base)
+                    
+                    if order_uom.id != base_uom.id:
+                        # Convert order quantity to base quantity
+                        qty_in_base = order_uom._compute_quantity(
+                            production.product_qty, base_uom, rounding_method='HALF-UP'
+                        )
+                        # Then convert base to secondary
+                        production.secondary_uom_qty = (
+                            qty_in_base * production.secondary_uom_id.factor
+                        )
+                    else:
+                        # Order UoM is base UoM, use factor directly
+                        production.secondary_uom_qty = (
+                            production.product_qty * production.secondary_uom_id.factor
+                        )
             else:
                 production.secondary_uom_qty = 0.0
 
