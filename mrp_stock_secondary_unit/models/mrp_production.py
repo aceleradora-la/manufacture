@@ -55,3 +55,26 @@ class MrpProduction(models.Model):
                 values["secondary_uom_qty"] = product_uom_qty / self.secondary_uom_id.factor
         return values
 
+    def _get_move_byproduct_values(
+        self,
+        product_id,
+        product_uom_qty,
+        product_uom,
+        operation_id=False,
+    ):
+        """Add secondary unit info to byproduct moves."""
+        values = super()._get_move_byproduct_values(
+            product_id=product_id,
+            product_uom_qty=product_uom_qty,
+            product_uom=product_uom,
+            operation_id=operation_id,
+        )
+        # Get secondary unit from byproduct product itself
+        if product_id and hasattr(product_id.product_tmpl_id, "secondary_uom_ids"):
+            secondary_uom = product_id.product_tmpl_id.secondary_uom_ids[:1]
+            if secondary_uom:
+                values["secondary_uom_id"] = secondary_uom.id
+                if secondary_uom.factor:
+                    values["secondary_uom_qty"] = product_uom_qty / secondary_uom.factor
+        return values
+
