@@ -1,7 +1,7 @@
 # Copyright 2025 Aceleradora
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
-from odoo import api, models
+from odoo import models
 
 
 class StockMove(models.Model):
@@ -22,37 +22,29 @@ class StockMove(models.Model):
                             secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                             if secondary_uom:
                                 move.secondary_uom_id = secondary_uom.id
-                                if secondary_uom.factor:
-                                    move.secondary_uom_qty = move.product_uom_qty / secondary_uom.factor
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
                     if not move.secondary_uom_id:
                         move.secondary_uom_id = move.production_id.secondary_uom_id.id
                     if not move.secondary_uom_qty and move.production_id.secondary_uom_qty:
                         move.secondary_uom_qty = move.production_id.secondary_uom_qty
-                    elif not move.secondary_uom_qty and move.secondary_uom_id.factor:
-                        move.secondary_uom_qty = move.product_uom_qty / move.secondary_uom_id.factor
             # For moves from unbuild orders
             elif move.unbuild_id and hasattr(move.unbuild_id, "secondary_uom_id"):
                 if move.unbuild_id.secondary_uom_id and not move.secondary_uom_id:
                     move.secondary_uom_id = move.unbuild_id.secondary_uom_id.id
-                    if move.unbuild_id.secondary_uom_qty:
-                        move.secondary_uom_qty = move.unbuild_id.secondary_uom_qty
-                    elif move.secondary_uom_id.factor:
-                        move.secondary_uom_qty = move.product_uom_qty / move.secondary_uom_id.factor
+                if not move.secondary_uom_qty and move.unbuild_id.secondary_uom_qty:
+                    move.secondary_uom_qty = move.unbuild_id.secondary_uom_qty
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
                     secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                     if secondary_uom:
                         move.secondary_uom_id = secondary_uom.id
-                        if secondary_uom.factor:
-                            move.secondary_uom_qty = move.product_uom_qty / secondary_uom.factor
         return moves
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Set secondary unit when creating moves from MO and Unbuild."""
+        """Transfer secondary unit when creating moves from MO and Unbuild."""
         moves = super().create(vals_list)
         for move in moves:
             # For finished products and byproducts from production order
@@ -65,32 +57,22 @@ class StockMove(models.Model):
                             secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                             if secondary_uom:
                                 move.secondary_uom_id = secondary_uom.id
-                                if secondary_uom.factor:
-                                    move.secondary_uom_qty = move.product_uom_qty / secondary_uom.factor
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
                     if not move.secondary_uom_id:
                         move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    if not move.secondary_uom_qty:
-                        if move.production_id.secondary_uom_qty:
-                            move.secondary_uom_qty = move.production_id.secondary_uom_qty
-                        elif move.secondary_uom_id.factor:
-                            move.secondary_uom_qty = move.product_uom_qty / move.secondary_uom_id.factor
+                    if not move.secondary_uom_qty and move.production_id.secondary_uom_qty:
+                        move.secondary_uom_qty = move.production_id.secondary_uom_qty
             # For moves from unbuild orders
             elif move.unbuild_id and hasattr(move.unbuild_id, "secondary_uom_id"):
                 if move.unbuild_id.secondary_uom_id and not move.secondary_uom_id:
                     move.secondary_uom_id = move.unbuild_id.secondary_uom_id.id
-                    if move.unbuild_id.secondary_uom_qty:
-                        move.secondary_uom_qty = move.unbuild_id.secondary_uom_qty
-                    elif move.secondary_uom_id.factor:
-                        move.secondary_uom_qty = move.product_uom_qty / move.secondary_uom_id.factor
+                if not move.secondary_uom_qty and move.unbuild_id.secondary_uom_qty:
+                    move.secondary_uom_qty = move.unbuild_id.secondary_uom_qty
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
                     secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                     if secondary_uom:
                         move.secondary_uom_id = secondary_uom.id
-                        if secondary_uom.factor:
-                            move.secondary_uom_qty = move.product_uom_qty / secondary_uom.factor
         return moves
-
