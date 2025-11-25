@@ -44,18 +44,38 @@ class MrpProduction(models.Model):
             self.secondary_uom_qty = 0.0
 
     def _compute_secondary_uom_qty(self):
-        """Compute secondary quantity from product quantity."""
+        """Compute secondary quantity from product quantity, considering UoM conversion."""
         for production in self:
             if (
                 production.secondary_uom_id
                 and production.product_qty
                 and production.secondary_uom_id.factor
             ):
-                # Convert from primary to secondary: multiply by factor
-                # Example: 6 Maple * 30 = 180 Huevos
-                production.secondary_uom_qty = (
-                    production.product_qty * production.secondary_uom_id.factor
+                # Get the UoM used in the production order
+                order_uom = production.product_uom_id or production.product_id.uom_id
+                # Get the base UoM of the product
+                base_uom = production.product_id.uom_id
+                # Get the secondary UoM
+                secondary_uom = production.secondary_uom_id.uom_id
+                
+                # Convert quantity from order UoM to base UoM
+                qty_in_base_uom = order_uom._compute_quantity(
+                    production.product_qty, base_uom, rounding_method='HALF-UP'
                 )
+                
+                # If secondary UoM is the same as order UoM, factor is 1
+                if secondary_uom.id == order_uom.id:
+                    production.secondary_uom_qty = production.product_qty
+                # If secondary UoM is the same as base UoM, use the factor directly
+                elif secondary_uom.id == base_uom.id:
+                    # Factor is defined relative to base UoM, so if secondary = base, factor should be 1
+                    production.secondary_uom_qty = qty_in_base_uom
+                else:
+                    # Convert from base UoM to secondary UoM using the factor
+                    # Factor is defined as: 1 base UoM = factor secondary UoM
+                    production.secondary_uom_qty = (
+                        qty_in_base_uom * production.secondary_uom_id.factor
+                    )
             else:
                 production.secondary_uom_qty = 0.0
 
