@@ -123,6 +123,9 @@ class MrpProduction(models.Model):
                     values["secondary_uom_id"] = secondary_uom.id
                     if secondary_uom.factor and product_uom_qty:
                         # Calculate secondary quantity considering UoM conversion
+                        # Convert to record if it's an ID
+                        if isinstance(product_uom, int):
+                            product_uom = self.env["uom.uom"].browse(product_uom)
                         base_uom = product.uom_id
                         secondary_uom_record = secondary_uom.uom_id
                         
