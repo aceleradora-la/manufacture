@@ -7,12 +7,8 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='product_qty']" position="after">
                 <newline/>
-                <field name="secondary_uom_id" 
-                       invisible="state != 'confirmed'"
-                       readonly="state != 'draft'"/>
-                <field name="secondary_uom_qty" 
-                       invisible="state != 'confirmed'"
-                       readonly="state != 'draft'"/>
+                <field name="secondary_uom_id" readonly="state != 'draft'"/>
+                <field name="secondary_uom_qty" readonly="state != 'draft'"/>
             </xpath>
         </field>
     </record>
