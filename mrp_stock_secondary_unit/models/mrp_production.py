@@ -10,20 +10,18 @@ class MrpProduction(models.Model):
     def _get_move_raw_values(
         self,
         product_id,
-        product_qty,
+        product_uom_qty,
         product_uom,
-        location_id,
-        location_dest_id,
-        bom_line,
+        operation_id=False,
+        bom_line=False,
     ):
         """Add secondary unit info to raw material moves."""
         values = super()._get_move_raw_values(
             product_id,
-            product_qty,
+            product_uom_qty,
             product_uom,
-            location_id,
-            location_dest_id,
-            bom_line,
+            operation_id=operation_id,
+            bom_line=bom_line,
         )
         # Get secondary unit from product if available
         product = self.env["product.product"].browse(product_id)
