@@ -91,7 +91,9 @@ class MrpProduction(models.Model):
             values["secondary_uom_id"] = self.secondary_uom_id.id
             if self.secondary_uom_qty:
                 values["secondary_uom_qty"] = self.secondary_uom_qty
-            elif self.secondary_uom_id.factor:
-                values["secondary_uom_qty"] = product_uom_qty / self.secondary_uom_id.factor
+            elif self.secondary_uom_id.factor and product_uom_qty:
+                # Calculate secondary quantity: primary * factor
+                # Example: 6 Maple * 30 = 180 Huevos
+                values["secondary_uom_qty"] = product_uom_qty * self.secondary_uom_id.factor
         return values
 

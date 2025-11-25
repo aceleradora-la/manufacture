@@ -52,8 +52,10 @@ class MrpProduction(models.Model):
                 and production.product_qty
                 and production.secondary_uom_id.factor
             ):
+                # Convert from primary to secondary: multiply by factor
+                # Example: 6 Maple * 30 = 180 Huevos
                 production.secondary_uom_qty = (
-                    production.product_qty / production.secondary_uom_id.factor
+                    production.product_qty * production.secondary_uom_id.factor
                 )
             else:
                 production.secondary_uom_qty = 0.0
