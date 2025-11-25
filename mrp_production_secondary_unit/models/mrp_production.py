@@ -46,14 +46,18 @@ class MrpProduction(models.Model):
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity from product quantity, considering UoM conversion.
         
-        This follows the same logic as product.secondary.unit.mixin._get_factor_line()
-        to maintain consistency across all secondary unit calculations.
+        The factor in secondary_uom_id is defined relative to the product's base UoM.
+        When the order uses a different UoM, we need to convert directly from order UoM
+        to secondary UoM, not through the base UoM.
         
-        The mixin calculates: qty_secondary = qty_line / factor
-        where factor = secondary_uom.factor * (uom_line.factor if uom_line != base_uom else 1.0)
+        Example:
+        - Base UoM: Cajón (360 huevos)
+        - Secondary UoM: Huevo (factor = 360, meaning 1 Cajón = 360 Huevos)
+        - Order UoM: Maple 30 (30 huevos)
+        - Quantity: 4 Maples
         
-        But we want: qty_secondary = qty_line * effective_factor
-        where effective_factor accounts for conversion from order UoM to secondary UoM
+        Correct calculation: 4 Maples × 30 = 120 Huevos
+        Wrong calculation: 4 Maples × 30 × 360 = 43200 (multiplying by factor)
         """
         for production in self:
             if (
@@ -71,27 +75,19 @@ class MrpProduction(models.Model):
                 # If secondary UoM is the same as order UoM, quantity is the same
                 if secondary_uom.id == order_uom.id:
                     production.secondary_uom_qty = production.product_qty
+                # If order UoM is the same as base UoM, use the factor directly
+                elif order_uom.id == base_uom.id:
+                    # Factor is defined as: 1 base UoM = factor secondary UoM
+                    production.secondary_uom_qty = (
+                        production.product_qty * production.secondary_uom_id.factor
+                    )
                 else:
-                    # Calculate effective factor following mixin pattern:
-                    # Convert from order UoM to base UoM, then to secondary UoM
-                    # Factor in mixin: secondary_uom.factor * (order_uom.factor if order_uom != base_uom else 1.0)
-                    # But we need: qty_secondary = qty_order * effective_factor
-                    # effective_factor = (base_to_secondary) / (order_to_base)
-                    
-                    if order_uom.id != base_uom.id:
-                        # Convert order quantity to base quantity
-                        qty_in_base = order_uom._compute_quantity(
-                            production.product_qty, base_uom, rounding_method='HALF-UP'
-                        )
-                        # Then convert base to secondary
-                        production.secondary_uom_qty = (
-                            qty_in_base * production.secondary_uom_id.factor
-                        )
-                    else:
-                        # Order UoM is base UoM, use factor directly
-                        production.secondary_uom_qty = (
-                            production.product_qty * production.secondary_uom_id.factor
-                        )
+                    # Order UoM is different from both base and secondary UoM
+                    # Convert directly from order UoM to secondary UoM
+                    # Do NOT use the factor (which is relative to base UoM)
+                    production.secondary_uom_qty = order_uom._compute_quantity(
+                        production.product_qty, secondary_uom, rounding_method='HALF-UP'
+                    )
             else:
                 production.secondary_uom_qty = 0.0
 
