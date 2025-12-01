@@ -6,10 +6,12 @@
         <field name="model">mrp.production</field>
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
-            <!-- Add secondary unit fields after product_qty -->
+            <!-- Add secondary unit fields after product_qty in a group -->
             <field name="product_qty" position="after">
-                <field name="secondary_uom_id" options="{'no_create': True}"/>
-                <field name="secondary_uom_qty"/>
+                <group>
+                    <field name="secondary_uom_id" options="{'no_create': True}"/>
+                    <field name="secondary_uom_qty"/>
+                </group>
             </field>
         </field>
     </record>

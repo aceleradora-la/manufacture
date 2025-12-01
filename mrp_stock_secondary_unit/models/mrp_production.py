@@ -33,6 +33,7 @@ class MrpProduction(models.Model):
             secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
                 values["secondary_uom_id"] = secondary_uom.id
+                # secondary_uom_qty will be computed automatically by the compute field
         return values
 
     def _get_move_finished_values(
@@ -57,7 +58,7 @@ class MrpProduction(models.Model):
         # For main finished product, use production order secondary unit
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # secondary_uom_qty will be computed automatically based on product_uom_qty
+            # secondary_uom_qty will be computed automatically by the compute field
         # For byproducts, get from product
         elif byproduct_id:
             # product_id can be an ID or a recordset
