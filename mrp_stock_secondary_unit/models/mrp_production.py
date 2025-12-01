@@ -57,7 +57,7 @@ class MrpProduction(models.Model):
         # For main finished product, use production order secondary unit
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            values["secondary_uom_qty"] = self.secondary_uom_qty
+            # secondary_uom_qty will be computed automatically based on product_uom_qty
         # For byproducts, get from product
         elif byproduct_id:
             # product_id can be an ID or a recordset
