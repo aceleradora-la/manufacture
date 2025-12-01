@@ -24,11 +24,15 @@ class MrpProduction(models.Model):
             bom_line=bom_line,
         )
         # Get secondary unit from product if available
-        # product_id can be an ID or a recordset
+        # Handle both product_id (int) and product (recordset) for compatibility
+        # with mrp_bom_line_formula_quantity which uses 'product' parameter
         if isinstance(product_id, (int,)):
             product = self.env["product.product"].browse(product_id)
         else:
             product = product_id
+        # Also check if product is in values (some modules may set it)
+        if not product and "product_id" in values:
+            product = self.env["product.product"].browse(values["product_id"])
         if product and hasattr(product.product_tmpl_id, "secondary_uom_ids"):
             secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
