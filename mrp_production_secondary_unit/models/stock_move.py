@@ -54,20 +54,26 @@ class StockMove(models.Model):
 
     @api.onchange("secondary_uom_id", "secondary_uom_qty")
     def _onchange_secondary_uom(self):
-        """Update primary quantity when secondary quantity changes."""
+        """Update primary quantity when secondary quantity changes manually."""
+        # Only update if this is a manual change, not from compute field recalculation
+        # Skip if we're in a context that indicates automatic recalculation
+        if self.env.context.get('skip_secondary_uom_onchange'):
+            return
         if self.secondary_uom_id and self.secondary_uom_qty:
             factor = self.secondary_uom_id.factor
             secondary_uom_record = self.secondary_uom_id.uom_id
             # Convert from secondary UoM to product UoM
             if self.product_uom.category_id == secondary_uom_record.category_id:
-                # Same UoM category, convert using UoM conversion
-                # First convert to secondary UoM base
-                base_qty = self.secondary_uom_qty / factor
-                # Then convert to product UoM
-                self.product_uom_qty = secondary_uom_record._compute_quantity(
-                    base_qty, self.product_uom
-                )
-            else:
-                # Different UoM category, cannot convert
-                pass
+                # Calculate expected secondary_qty from current product_uom_qty
+                expected_secondary_qty = self.product_uom._compute_quantity(
+                    self.product_uom_qty, secondary_uom_record
+                ) * factor
+                # Only update if secondary_uom_qty differs significantly (manual change)
+                # This prevents circular updates when compute field recalculates
+                if abs(self.secondary_uom_qty - expected_secondary_qty) > 0.0001:
+                    # Manual change detected, update product_uom_qty
+                    base_qty = self.secondary_uom_qty / factor
+                    self.product_uom_qty = secondary_uom_record._compute_quantity(
+                        base_qty, self.product_uom
+                    )
 
