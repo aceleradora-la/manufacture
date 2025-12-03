@@ -52,24 +52,6 @@ class MrpProduction(models.Model):
             self.secondary_uom_id = False
             self.secondary_uom_qty = 0.0
 
-    @api.onchange("secondary_uom_id", "secondary_uom_qty")
-    def _onchange_secondary_uom(self):
-        """Update primary quantity when secondary quantity changes."""
-        if self.secondary_uom_id and self.secondary_uom_qty:
-            factor = self.secondary_uom_id.factor
-            secondary_uom_record = self.secondary_uom_id.uom_id
-            # Convert from secondary UoM to product UoM
-            if self.product_uom_id.category_id == secondary_uom_record.category_id:
-                # Same UoM category, convert using UoM conversion
-                # First convert to secondary UoM base
-                base_qty = self.secondary_uom_qty / factor
-                # Then convert to product UoM
-                self.product_qty = secondary_uom_record._compute_quantity(
-                    base_qty, self.product_uom_id
-                )
-            else:
-                # Different UoM category, cannot convert
-                pass
 
     @api.onchange("product_qty")
     def _onchange_product_qty_secondary_unit(self):

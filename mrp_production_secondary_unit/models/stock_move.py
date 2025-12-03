@@ -52,34 +52,4 @@ class StockMove(models.Model):
             self.secondary_uom_id = False
             self.secondary_uom_qty = 0.0
 
-    @api.onchange("secondary_uom_id", "secondary_uom_qty")
-    def _onchange_secondary_uom(self):
-        """Update primary quantity when secondary quantity changes manually."""
-        # Only update if this is a manual change, not from compute field recalculation
-        # Skip if we're in a context that indicates automatic recalculation
-        if self.env.context.get('skip_secondary_uom_onchange'):
-            return
-        # Don't update if product_uom_qty is 0 or not set (likely being recalculated)
-        if not self.product_uom_qty:
-            return
-        if self.secondary_uom_id and self.secondary_uom_qty:
-            factor = self.secondary_uom_id.factor
-            secondary_uom_record = self.secondary_uom_id.uom_id
-            # Convert from secondary UoM to product UoM
-            if self.product_uom.category_id == secondary_uom_record.category_id:
-                # Calculate expected secondary_qty from current product_uom_qty
-                expected_secondary_qty = self.product_uom._compute_quantity(
-                    self.product_uom_qty, secondary_uom_record
-                ) * factor
-                # Only update if secondary_uom_qty differs significantly (manual change)
-                # This prevents circular updates when compute field recalculates
-                # Also check if the difference is large enough to indicate manual change
-                diff = abs(self.secondary_uom_qty - expected_secondary_qty)
-                # Use a larger threshold to avoid false positives during recalculation
-                if diff > max(0.0001, expected_secondary_qty * 0.01):
-                    # Manual change detected, update product_uom_qty
-                    base_qty = self.secondary_uom_qty / factor
-                    self.product_uom_qty = secondary_uom_record._compute_quantity(
-                        base_qty, self.product_uom
-                    )
 
