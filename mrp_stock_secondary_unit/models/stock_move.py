@@ -27,12 +27,13 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
-                    # Set secondary_uom_id if not already set
-                    if not move.secondary_uom_id:
-                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    # Calculate secondary_uom_qty if not already set or if it's 0
-                    if move.product_uom_qty and (not move.secondary_uom_qty or move.secondary_uom_qty == 0.0):
-                        move.secondary_uom_qty = move._calculate_secondary_uom_qty()
+                    # Always set secondary_uom_id from production order first
+                    move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    # Always recalculate secondary_uom_qty to ensure it's correct
+                    if move.product_uom_qty and move.product_uom:
+                        calculated_qty = move._calculate_secondary_uom_qty()
+                        # Use write to ensure the value is saved
+                        move.write({"secondary_uom_qty": calculated_qty})
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
@@ -64,12 +65,13 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
-                    # Set secondary_uom_id if not already set
-                    if not move.secondary_uom_id:
-                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    # Calculate secondary_uom_qty if not already set or if it's 0
-                    if move.product_uom_qty and (not move.secondary_uom_qty or move.secondary_uom_qty == 0.0):
-                        move.secondary_uom_qty = move._calculate_secondary_uom_qty()
+                    # Always set secondary_uom_id from production order first
+                    move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    # Always recalculate secondary_uom_qty to ensure it's correct
+                    if move.product_uom_qty and move.product_uom:
+                        calculated_qty = move._calculate_secondary_uom_qty()
+                        # Use write to ensure the value is saved
+                        move.write({"secondary_uom_qty": calculated_qty})
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
