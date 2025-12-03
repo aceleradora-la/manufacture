@@ -52,6 +52,12 @@ class StockMove(models.Model):
             self.secondary_uom_id = False
             self.secondary_uom_qty = 0.0
 
+    @api.onchange("product_uom_qty", "product_uom")
+    def _onchange_product_uom_qty_secondary_unit(self):
+        """Recalculate secondary quantity when primary quantity changes."""
+        if self.secondary_uom_id and self.product_uom_qty:
+            self._compute_secondary_uom_qty()
+
     @api.onchange("secondary_uom_id", "secondary_uom_qty")
     def _onchange_secondary_uom(self):
         """Update primary quantity when secondary quantity changes manually."""

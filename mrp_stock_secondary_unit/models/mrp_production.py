@@ -72,7 +72,18 @@ class MrpProduction(models.Model):
         # For main finished product, use production order secondary unit
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # secondary_uom_qty will be computed automatically by the compute field
+            # Calculate secondary_uom_qty manually based on product_uom_qty
+            if product_uom_qty and self.secondary_uom_id:
+                factor = self.secondary_uom_id.factor
+                secondary_uom_record = self.secondary_uom_id.uom_id
+                # Convert from product UoM to secondary UoM base, then apply factor
+                if product_uom.category_id == secondary_uom_record.category_id:
+                    converted_qty = product_uom._compute_quantity(
+                        product_uom_qty, secondary_uom_record
+                    )
+                    values["secondary_uom_qty"] = converted_qty * factor
+                else:
+                    values["secondary_uom_qty"] = 0.0
         # For byproducts, get from product
         elif byproduct_id:
             # product_id can be an ID or a recordset
