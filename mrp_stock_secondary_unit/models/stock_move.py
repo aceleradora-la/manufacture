@@ -32,43 +32,22 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
-                    # Always set secondary_uom_id from production order first
-                    # Always recalculate secondary_uom_qty to ensure it's correct
-                    if move.product_uom_qty and move.product_uom and move.product_id:
-                        # Calculate directly using product's base UoM (like sale_order_secondary_unit)
-                        secondary_uom = move.production_id.secondary_uom_id
-                        factor = secondary_uom.factor
-                        secondary_uom_record = secondary_uom.uom_id
-                        product_base_uom = move.product_id.uom_id
-                        # First convert from move UoM to product's base UoM
-                        if move.product_uom.category_id == product_base_uom.category_id:
-                            base_qty = move.product_uom._compute_quantity(
-                                move.product_uom_qty, product_base_uom
-                            )
-                            # Then convert from product's base UoM to secondary UoM base, then apply factor
-                            if product_base_uom.category_id == secondary_uom_record.category_id:
-                                converted_qty = product_base_uom._compute_quantity(
-                                    base_qty, secondary_uom_record
-                                )
-                                calculated_qty = converted_qty * factor
-                            else:
-                                calculated_qty = 0.0
-                        # Fallback: try direct conversion if categories match
-                        elif move.product_uom.category_id == secondary_uom_record.category_id:
-                            converted_qty = move.product_uom._compute_quantity(
-                                move.product_uom_qty, secondary_uom_record
-                            )
-                            calculated_qty = converted_qty * factor
+                    # Always set secondary_uom_id from production order
+                    # Always copy secondary_uom_qty from production order, scaling proportionally
+                    # This matches how sale_stock_secondary_unit works
+                    secondary_uom_qty = 0.0
+                    if move.production_id.secondary_uom_qty:
+                        if move.production_id.product_qty and move.product_uom_qty:
+                            # Scale proportionally based on quantity ratio
+                            ratio = move.product_uom_qty / move.production_id.product_qty
+                            secondary_uom_qty = move.production_id.secondary_uom_qty * ratio
                         else:
-                            calculated_qty = 0.0
-                        # Use write to ensure both values are saved together
-                        move.write({
-                            "secondary_uom_id": secondary_uom.id,
-                            "secondary_uom_qty": calculated_qty,
-                        })
-                    else:
-                        # Even if no quantity, set the secondary_uom_id
-                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                            secondary_uom_qty = move.production_id.secondary_uom_qty
+                    # Use write to ensure values are saved
+                    move.write({
+                        "secondary_uom_id": move.production_id.secondary_uom_id.id,
+                        "secondary_uom_qty": secondary_uom_qty,
+                    })
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
@@ -105,43 +84,22 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
-                    # Always set secondary_uom_id from production order first
-                    # Always recalculate secondary_uom_qty to ensure it's correct
-                    if move.product_uom_qty and move.product_uom and move.product_id:
-                        # Calculate directly using product's base UoM (like sale_order_secondary_unit)
-                        secondary_uom = move.production_id.secondary_uom_id
-                        factor = secondary_uom.factor
-                        secondary_uom_record = secondary_uom.uom_id
-                        product_base_uom = move.product_id.uom_id
-                        # First convert from move UoM to product's base UoM
-                        if move.product_uom.category_id == product_base_uom.category_id:
-                            base_qty = move.product_uom._compute_quantity(
-                                move.product_uom_qty, product_base_uom
-                            )
-                            # Then convert from product's base UoM to secondary UoM base, then apply factor
-                            if product_base_uom.category_id == secondary_uom_record.category_id:
-                                converted_qty = product_base_uom._compute_quantity(
-                                    base_qty, secondary_uom_record
-                                )
-                                calculated_qty = converted_qty * factor
-                            else:
-                                calculated_qty = 0.0
-                        # Fallback: try direct conversion if categories match
-                        elif move.product_uom.category_id == secondary_uom_record.category_id:
-                            converted_qty = move.product_uom._compute_quantity(
-                                move.product_uom_qty, secondary_uom_record
-                            )
-                            calculated_qty = converted_qty * factor
+                    # Always set secondary_uom_id from production order
+                    # Always copy secondary_uom_qty from production order, scaling proportionally
+                    # This matches how sale_stock_secondary_unit works
+                    secondary_uom_qty = 0.0
+                    if move.production_id.secondary_uom_qty:
+                        if move.production_id.product_qty and move.product_uom_qty:
+                            # Scale proportionally based on quantity ratio
+                            ratio = move.product_uom_qty / move.production_id.product_qty
+                            secondary_uom_qty = move.production_id.secondary_uom_qty * ratio
                         else:
-                            calculated_qty = 0.0
-                        # Use write to ensure both values are saved together
-                        move.write({
-                            "secondary_uom_id": secondary_uom.id,
-                            "secondary_uom_qty": calculated_qty,
-                        })
-                    else:
-                        # Even if no quantity, set the secondary_uom_id
-                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                            secondary_uom_qty = move.production_id.secondary_uom_qty
+                    # Use write to ensure values are saved
+                    move.write({
+                        "secondary_uom_id": move.production_id.secondary_uom_id.id,
+                        "secondary_uom_qty": secondary_uom_qty,
+                    })
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
