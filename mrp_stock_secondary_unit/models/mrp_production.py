@@ -86,12 +86,19 @@ class MrpProduction(models.Model):
         )
         
         # For main finished product, use production order secondary unit
+        # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Calculate secondary_uom_qty manually based on product_uom_qty from values
-            # Use values["product_uom_qty"] instead of parameter, as it may have been modified by other modules
-            # Always calculate, even if it seems to be set, to ensure correctness
-            if "product_uom_qty" in values and values["product_uom_qty"]:
+            # Use the secondary_uom_qty from production order if available
+            # Otherwise calculate based on the ratio between production qty and move qty
+            if self.secondary_uom_qty and self.product_qty:
+                # Scale the secondary quantity proportionally to the move quantity
+                # If production has 21 units with secondary_qty=7560, and move has 21 units, use 7560
+                # If production has 21 units with secondary_qty=7560, and move has 10 units, use 3600
+                ratio = values.get("product_uom_qty", product_uom_qty) / self.product_qty
+                values["secondary_uom_qty"] = self.secondary_uom_qty * ratio
+            elif "product_uom_qty" in values and values["product_uom_qty"]:
+                # Fallback: calculate if production doesn't have secondary_uom_qty yet
                 factor = self.secondary_uom_id.factor
                 secondary_uom_record = self.secondary_uom_id.uom_id
                 # Get product_uom from values if available, otherwise use parameter
@@ -113,7 +120,6 @@ class MrpProduction(models.Model):
                 else:
                     values["secondary_uom_qty"] = 0.0
             else:
-                # If no product_uom_qty, set to 0
                 values["secondary_uom_qty"] = 0.0
         # For byproducts, get from product
         elif byproduct_id:
