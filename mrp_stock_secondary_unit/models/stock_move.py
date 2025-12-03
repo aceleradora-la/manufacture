@@ -29,12 +29,27 @@ class StockMove(models.Model):
                 elif move.production_id.secondary_uom_id:
                     # Always set secondary_uom_id from production order first
                     # Always recalculate secondary_uom_qty to ensure it's correct
-                    if move.product_uom_qty and move.product_uom:
-                        # Calculate directly to avoid dependency issues
+                    if move.product_uom_qty and move.product_uom and move.product_id:
+                        # Calculate directly using product's base UoM (like sale_order_secondary_unit)
                         secondary_uom = move.production_id.secondary_uom_id
                         factor = secondary_uom.factor
                         secondary_uom_record = secondary_uom.uom_id
-                        if move.product_uom.category_id == secondary_uom_record.category_id:
+                        product_base_uom = move.product_id.uom_id
+                        # First convert from move UoM to product's base UoM
+                        if move.product_uom.category_id == product_base_uom.category_id:
+                            base_qty = move.product_uom._compute_quantity(
+                                move.product_uom_qty, product_base_uom
+                            )
+                            # Then convert from product's base UoM to secondary UoM base, then apply factor
+                            if product_base_uom.category_id == secondary_uom_record.category_id:
+                                converted_qty = product_base_uom._compute_quantity(
+                                    base_qty, secondary_uom_record
+                                )
+                                calculated_qty = converted_qty * factor
+                            else:
+                                calculated_qty = 0.0
+                        # Fallback: try direct conversion if categories match
+                        elif move.product_uom.category_id == secondary_uom_record.category_id:
                             converted_qty = move.product_uom._compute_quantity(
                                 move.product_uom_qty, secondary_uom_record
                             )
@@ -82,12 +97,27 @@ class StockMove(models.Model):
                 elif move.production_id.secondary_uom_id:
                     # Always set secondary_uom_id from production order first
                     # Always recalculate secondary_uom_qty to ensure it's correct
-                    if move.product_uom_qty and move.product_uom:
-                        # Calculate directly to avoid dependency issues
+                    if move.product_uom_qty and move.product_uom and move.product_id:
+                        # Calculate directly using product's base UoM (like sale_order_secondary_unit)
                         secondary_uom = move.production_id.secondary_uom_id
                         factor = secondary_uom.factor
                         secondary_uom_record = secondary_uom.uom_id
-                        if move.product_uom.category_id == secondary_uom_record.category_id:
+                        product_base_uom = move.product_id.uom_id
+                        # First convert from move UoM to product's base UoM
+                        if move.product_uom.category_id == product_base_uom.category_id:
+                            base_qty = move.product_uom._compute_quantity(
+                                move.product_uom_qty, product_base_uom
+                            )
+                            # Then convert from product's base UoM to secondary UoM base, then apply factor
+                            if product_base_uom.category_id == secondary_uom_record.category_id:
+                                converted_qty = product_base_uom._compute_quantity(
+                                    base_qty, secondary_uom_record
+                                )
+                                calculated_qty = converted_qty * factor
+                            else:
+                                calculated_qty = 0.0
+                        # Fallback: try direct conversion if categories match
+                        elif move.product_uom.category_id == secondary_uom_record.category_id:
                             converted_qty = move.product_uom._compute_quantity(
                                 move.product_uom_qty, secondary_uom_record
                             )

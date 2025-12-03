@@ -54,10 +54,25 @@ class MrpProduction(models.Model):
                         product_uom_record = self.env["uom.uom"].browse(product_uom)
                     else:
                         product_uom_record = product_uom
-                    # Calculate secondary quantity
+                    # Calculate secondary quantity using product's base UoM
                     factor = secondary_uom.factor
                     secondary_uom_record = secondary_uom.uom_id
-                    if product_uom_record.category_id == secondary_uom_record.category_id:
+                    product_base_uom = product.uom_id
+                    # First convert from move UoM to product's base UoM
+                    if product_uom_record.category_id == product_base_uom.category_id:
+                        base_qty = product_uom_record._compute_quantity(
+                            values["product_uom_qty"], product_base_uom
+                        )
+                        # Then convert from product's base UoM to secondary UoM base, then apply factor
+                        if product_base_uom.category_id == secondary_uom_record.category_id:
+                            converted_qty = product_base_uom._compute_quantity(
+                                base_qty, secondary_uom_record
+                            )
+                            values["secondary_uom_qty"] = converted_qty * factor
+                        else:
+                            values["secondary_uom_qty"] = 0.0
+                    # Fallback: try direct conversion if categories match
+                    elif product_uom_record.category_id == secondary_uom_record.category_id:
                         converted_qty = product_uom_record._compute_quantity(
                             values["product_uom_qty"], secondary_uom_record
                         )
@@ -111,12 +126,35 @@ class MrpProduction(models.Model):
                     product_uom_record = self.env["uom.uom"].browse(product_uom)
                 else:
                     product_uom_record = product_uom
-                # Convert from product UoM to secondary UoM base, then apply factor
-                if product_uom_record and product_uom_record.category_id == secondary_uom_record.category_id:
-                    converted_qty = product_uom_record._compute_quantity(
-                        values["product_uom_qty"], secondary_uom_record
-                    )
-                    values["secondary_uom_qty"] = converted_qty * factor
+                # Convert using product's base UoM (like sale_order_secondary_unit)
+                # First get the product
+                if isinstance(product_id, (int,)):
+                    product = self.env["product.product"].browse(product_id)
+                else:
+                    product = product_id
+                if product and product_uom_record:
+                    product_base_uom = product.uom_id
+                    # First convert from move UoM to product's base UoM
+                    if product_uom_record.category_id == product_base_uom.category_id:
+                        base_qty = product_uom_record._compute_quantity(
+                            values["product_uom_qty"], product_base_uom
+                        )
+                        # Then convert from product's base UoM to secondary UoM base, then apply factor
+                        if product_base_uom.category_id == secondary_uom_record.category_id:
+                            converted_qty = product_base_uom._compute_quantity(
+                                base_qty, secondary_uom_record
+                            )
+                            values["secondary_uom_qty"] = converted_qty * factor
+                        else:
+                            values["secondary_uom_qty"] = 0.0
+                    # Fallback: try direct conversion if categories match
+                    elif product_uom_record.category_id == secondary_uom_record.category_id:
+                        converted_qty = product_uom_record._compute_quantity(
+                            values["product_uom_qty"], secondary_uom_record
+                        )
+                        values["secondary_uom_qty"] = converted_qty * factor
+                    else:
+                        values["secondary_uom_qty"] = 0.0
                 else:
                     values["secondary_uom_qty"] = 0.0
             else:

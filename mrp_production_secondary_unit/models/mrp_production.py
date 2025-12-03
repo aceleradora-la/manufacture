@@ -19,22 +19,38 @@ class MrpProduction(models.Model):
     )
 
     def _calculate_secondary_uom_qty(self):
-        """Calculate secondary quantity based on primary quantity and conversion factor."""
-        if not self.secondary_uom_id or not self.product_qty:
+        """Calculate secondary quantity based on primary quantity and conversion factor.
+        
+        Uses the same logic as sale_order_secondary_unit: convert from product's base UoM
+        to secondary UoM base, then apply the factor.
+        """
+        if not self.secondary_uom_id or not self.product_qty or not self.product_id:
             return 0.0
         # Get the factor from secondary unit
         factor = self.secondary_uom_id.factor
         secondary_uom_record = self.secondary_uom_id.uom_id
-        # Convert from product UoM to secondary UoM base, then apply factor
+        # Use product's base UoM (product_id.uom_id) instead of production order's UoM
+        # This matches the logic used in sale_order_secondary_unit
+        product_uom = self.product_id.uom_id
+        # First convert from production order UoM to product's base UoM
+        if self.product_uom_id.category_id == product_uom.category_id:
+            # Convert production qty to product's base UoM
+            base_qty = self.product_uom_id._compute_quantity(
+                self.product_qty, product_uom
+            )
+            # Then convert from product's base UoM to secondary UoM base, then apply factor
+            if product_uom.category_id == secondary_uom_record.category_id:
+                converted_qty = product_uom._compute_quantity(
+                    base_qty, secondary_uom_record
+                )
+                return converted_qty * factor
+        # Fallback: try direct conversion if categories match
         if self.product_uom_id.category_id == secondary_uom_record.category_id:
-            # Same UoM category, convert using UoM conversion
             converted_qty = self.product_uom_id._compute_quantity(
                 self.product_qty, secondary_uom_record
             )
             return converted_qty * factor
-        else:
-            # Different UoM category, cannot convert directly
-            return 0.0
+        return 0.0
 
 
     @api.onchange("product_id")
