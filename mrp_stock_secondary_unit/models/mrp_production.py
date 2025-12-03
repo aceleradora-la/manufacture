@@ -43,9 +43,15 @@ class MrpProduction(models.Model):
         # Also check if product_id is in values (some modules may set it)
         if not product and "product_id" in values:
             product = self.env["product.product"].browse(values["product_id"])
-        if product and hasattr(product.product_tmpl_id, "secondary_uom_ids"):
-            secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
-            if secondary_uom:
+        # Try to get secondary_uom_ids directly from product (if available)
+        # Otherwise fall back to product_tmpl_id
+        secondary_uom = False
+        if product:
+            if hasattr(product, "secondary_uom_ids") and product.secondary_uom_ids:
+                secondary_uom = product.secondary_uom_ids[:1]
+            elif hasattr(product.product_tmpl_id, "secondary_uom_ids"):
+                secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
+        if secondary_uom:
                 values["secondary_uom_id"] = secondary_uom.id
                 # Calculate secondary_uom_qty if product_uom_qty is available
                 if "product_uom_qty" in values and values["product_uom_qty"]:

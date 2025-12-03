@@ -62,7 +62,14 @@ class MrpProduction(models.Model):
     def _onchange_product_id_secondary_unit(self):
         """Set secondary unit when product changes."""
         if self.product_id:
-            secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
+            # Try to get secondary_uom_ids directly from product (if available)
+            # Otherwise fall back to product_tmpl_id
+            if hasattr(self.product_id, "secondary_uom_ids") and self.product_id.secondary_uom_ids:
+                secondary_uom = self.product_id.secondary_uom_ids[:1]
+            elif hasattr(self.product_id.product_tmpl_id, "secondary_uom_ids"):
+                secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
+            else:
+                secondary_uom = False
             if secondary_uom:
                 self.secondary_uom_id = secondary_uom
                 # Recalculate secondary quantity
@@ -93,10 +100,15 @@ class MrpProduction(models.Model):
         for production in productions:
             # Set secondary_uom_id from product if not already set
             if not production.secondary_uom_id and production.product_id:
-                if hasattr(production.product_id.product_tmpl_id, "secondary_uom_ids"):
+                # Try to get secondary_uom_ids directly from product (if available)
+                # Otherwise fall back to product_tmpl_id
+                secondary_uom = False
+                if hasattr(production.product_id, "secondary_uom_ids") and production.product_id.secondary_uom_ids:
+                    secondary_uom = production.product_id.secondary_uom_ids[:1]
+                elif hasattr(production.product_id.product_tmpl_id, "secondary_uom_ids"):
                     secondary_uom = production.product_id.product_tmpl_id.secondary_uom_ids[:1]
-                    if secondary_uom:
-                        production.secondary_uom_id = secondary_uom
+                if secondary_uom:
+                    production.secondary_uom_id = secondary_uom
             # Always recalculate secondary_uom_qty after all fields are set
             # Force recalculation even if secondary_uom_qty was set in vals
             if production.secondary_uom_id and production.product_qty and production.product_uom_id:

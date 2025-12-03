@@ -18,9 +18,14 @@ class StockMove(models.Model):
                 if move.product_id != move.production_id.product_id:
                     # For byproducts - get from product if not already set
                     if not move.secondary_uom_id and move.product_id:
-                        if hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
+                        # Try to get secondary_uom_ids directly from product (if available)
+                        # Otherwise fall back to product_tmpl_id
+                        secondary_uom = False
+                        if hasattr(move.product_id, "secondary_uom_ids") and move.product_id.secondary_uom_ids:
+                            secondary_uom = move.product_id.secondary_uom_ids[:1]
+                        elif hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
                             secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
-                            if secondary_uom:
+                        if secondary_uom:
                                 move.secondary_uom_id = secondary_uom.id
                                 # Calculate secondary_uom_qty
                                 if move.product_uom_qty:
@@ -86,9 +91,14 @@ class StockMove(models.Model):
                 if move.product_id != move.production_id.product_id:
                     # For byproducts - get from product if not already set
                     if not move.secondary_uom_id and move.product_id:
-                        if hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
+                        # Try to get secondary_uom_ids directly from product (if available)
+                        # Otherwise fall back to product_tmpl_id
+                        secondary_uom = False
+                        if hasattr(move.product_id, "secondary_uom_ids") and move.product_id.secondary_uom_ids:
+                            secondary_uom = move.product_id.secondary_uom_ids[:1]
+                        elif hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
                             secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
-                            if secondary_uom:
+                        if secondary_uom:
                                 move.secondary_uom_id = secondary_uom.id
                                 # Calculate secondary_uom_qty
                                 if move.product_uom_qty:

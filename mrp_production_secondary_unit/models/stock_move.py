@@ -60,7 +60,14 @@ class StockMove(models.Model):
     def _onchange_product_id_secondary_unit(self):
         """Set secondary unit when product changes."""
         if self.product_id:
-            secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
+            # Try to get secondary_uom_ids directly from product (if available)
+            # Otherwise fall back to product_tmpl_id
+            if hasattr(self.product_id, "secondary_uom_ids") and self.product_id.secondary_uom_ids:
+                secondary_uom = self.product_id.secondary_uom_ids[:1]
+            elif hasattr(self.product_id.product_tmpl_id, "secondary_uom_ids"):
+                secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
+            else:
+                secondary_uom = False
             if secondary_uom:
                 self.secondary_uom_id = secondary_uom
                 # Calculate secondary_uom_qty if product_uom_qty is available
