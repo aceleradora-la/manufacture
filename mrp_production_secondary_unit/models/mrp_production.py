@@ -21,36 +21,41 @@ class MrpProduction(models.Model):
     def _calculate_secondary_uom_qty(self):
         """Calculate secondary quantity based on primary quantity and conversion factor.
         
-        Uses the same logic as sale_order_secondary_unit: convert from product's base UoM
-        to secondary UoM base, then apply the factor.
+        Formula: secondary_qty = (product_qty converted to product base UoM) 
+                 * (conversion to secondary UoM base) * factor
         """
         if not self.secondary_uom_id or not self.product_qty or not self.product_id:
             return 0.0
+        
         # Get the factor from secondary unit
         factor = self.secondary_uom_id.factor
         secondary_uom_record = self.secondary_uom_id.uom_id
-        # Use product's base UoM (product_id.uom_id) instead of production order's UoM
-        # This matches the logic used in sale_order_secondary_unit
         product_uom = self.product_id.uom_id
-        # First convert from production order UoM to product's base UoM
-        if self.product_uom_id.category_id == product_uom.category_id:
-            # Convert production qty to product's base UoM
-            base_qty = self.product_uom_id._compute_quantity(
-                self.product_qty, product_uom
-            )
-            # Then convert from product's base UoM to secondary UoM base, then apply factor
-            if product_uom.category_id == secondary_uom_record.category_id:
-                converted_qty = product_uom._compute_quantity(
-                    base_qty, secondary_uom_record
-                )
-                return converted_qty * factor
-        # Fallback: try direct conversion if categories match
-        if self.product_uom_id.category_id == secondary_uom_record.category_id:
-            converted_qty = self.product_uom_id._compute_quantity(
-                self.product_qty, secondary_uom_record
-            )
-            return converted_qty * factor
-        return 0.0
+        
+        # Step 1: Convert from production order UoM to product's base UoM
+        if not self.product_uom_id or not product_uom:
+            return 0.0
+            
+        # Convert production qty to product's base UoM
+        if self.product_uom_id.category_id != product_uom.category_id:
+            # Categories don't match, can't convert
+            return 0.0
+            
+        base_qty = self.product_uom_id._compute_quantity(
+            self.product_qty, product_uom
+        )
+        
+        # Step 2: Convert from product's base UoM to secondary UoM base
+        if product_uom.category_id != secondary_uom_record.category_id:
+            # Categories don't match, can't convert
+            return 0.0
+            
+        converted_qty = product_uom._compute_quantity(
+            base_qty, secondary_uom_record
+        )
+        
+        # Step 3: Apply factor
+        return converted_qty * factor
 
 
     @api.onchange("product_id")
@@ -92,19 +97,20 @@ class MrpProduction(models.Model):
                     secondary_uom = production.product_id.product_tmpl_id.secondary_uom_ids[:1]
                     if secondary_uom:
                         production.secondary_uom_id = secondary_uom
-            # Recalculate secondary_uom_qty after all fields are set
-            # Use write to ensure it's saved correctly
+            # Always recalculate secondary_uom_qty after all fields are set
+            # Force recalculation even if secondary_uom_qty was set in vals
             if production.secondary_uom_id and production.product_qty and production.product_uom_id:
                 calculated_qty = production._calculate_secondary_uom_qty()
+                # Always update, even if it's the same value, to ensure it's correct
                 if calculated_qty != production.secondary_uom_qty:
                     production.write({"secondary_uom_qty": calculated_qty})
         return productions
     
     def write(self, vals):
-        """Recalculate secondary_uom_qty when product_qty or product_uom_id changes."""
+        """Recalculate secondary_uom_qty when product_qty, product_uom_id, or secondary_uom_id changes."""
         result = super().write(vals)
-        # Recalculate if product_qty or product_uom_id changed
-        if "product_qty" in vals or "product_uom_id" in vals:
+        # Recalculate if product_qty, product_uom_id, or secondary_uom_id changed
+        if "product_qty" in vals or "product_uom_id" in vals or "secondary_uom_id" in vals:
             for production in self:
                 if production.secondary_uom_id and production.product_qty and production.product_uom_id:
                     calculated_qty = production._calculate_secondary_uom_qty()
