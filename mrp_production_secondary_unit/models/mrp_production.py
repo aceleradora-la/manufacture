@@ -52,10 +52,3 @@ class MrpProduction(models.Model):
             self.secondary_uom_id = False
             self.secondary_uom_qty = 0.0
 
-
-    @api.onchange("product_qty")
-    def _onchange_product_qty_secondary_unit(self):
-        """Update secondary quantity when primary quantity changes."""
-        if self.secondary_uom_id and self.product_qty:
-            self._compute_secondary_uom_qty()
-
