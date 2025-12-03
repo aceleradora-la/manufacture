@@ -49,7 +49,7 @@ class MrpProduction(models.Model):
     def write(self, vals):
         """Override write to skip secondary_uom_qty computation during write."""
         # Skip secondary_uom_qty computation during write to avoid interfering
-        result = super().write(vals.with_context(skip_secondary_uom_compute_during_write=True))
+        result = super(MrpProduction, self.with_context(skip_secondary_uom_compute_during_write=True)).write(vals)
         # Recalculate secondary_uom_qty after write completes, but only if product_qty changed
         if 'product_qty' in vals:
             # Recalculate manually after standard updates complete
