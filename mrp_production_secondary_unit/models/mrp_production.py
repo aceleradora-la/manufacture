@@ -50,3 +50,25 @@ class MrpProduction(models.Model):
         self._onchange_helper_product_uom_for_secondary()
         return res
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Set secondary_uom_id when creating production orders."""
+        productions = super().create(vals_list)
+        for production in productions:
+            # Set secondary_uom_id from product if not already set
+            if not production.secondary_uom_id and production.product_id:
+                if not self.env.context.get("skip_secondary_uom_default"):
+                    # Try to get secondary_uom_ids directly from product (if available)
+                    # Otherwise fall back to product_tmpl_id
+                    secondary_uom = False
+                    if hasattr(production.product_id, "secondary_uom_ids") and production.product_id.secondary_uom_ids:
+                        secondary_uom = production.product_id.secondary_uom_ids[:1]
+                    elif hasattr(production.product_id.product_tmpl_id, "secondary_uom_ids"):
+                        secondary_uom = production.product_id.product_tmpl_id.secondary_uom_ids[:1]
+                    if secondary_uom:
+                        production.secondary_uom_id = secondary_uom
+                        # Recalculate secondary_uom_qty using mixin helper
+                        if production.product_qty and production.product_uom_id:
+                            production._onchange_helper_product_uom_for_secondary()
+        return productions
+
