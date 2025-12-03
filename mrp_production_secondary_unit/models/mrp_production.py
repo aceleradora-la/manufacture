@@ -17,6 +17,20 @@ class MrpProduction(models.Model):
         domain="[('product_tmpl_id', '=', product_id.product_tmpl_id)]",
     )
 
+    @api.model
+    def _get_secondary_uom_qty_depends(self):
+        """Include product_uom_id and secondary_uom_id in depends to recalculate when UoM changes."""
+        depends = super()._get_secondary_uom_qty_depends()
+        # Add product_uom_id to depends so secondary_uom_qty recalculates when UoM changes
+        if self._secondary_unit_fields.get("uom_field"):
+            uom_field = self._secondary_unit_fields["uom_field"]
+            if uom_field not in depends:
+                depends.append(uom_field)
+        # Also include secondary_uom_id because the factor may change
+        if "secondary_uom_id" not in depends:
+            depends.append("secondary_uom_id")
+        return depends
+
     @api.onchange("product_id")
     def _onchange_product_id(self):
         """Set secondary unit when product changes."""
