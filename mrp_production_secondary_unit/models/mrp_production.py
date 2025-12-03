@@ -36,12 +36,6 @@ class MrpProduction(models.Model):
             # Different UoM category, cannot convert directly
             return 0.0
 
-    @api.onchange("product_qty")
-    def _onchange_product_qty_secondary_unit(self):
-        """Recalculate secondary quantity when primary quantity changes."""
-        # Only recalculate secondary_uom_qty, don't interfere with standard recalculation
-        if self.secondary_uom_id and self.product_qty:
-            self.secondary_uom_qty = self._calculate_secondary_uom_qty()
 
     @api.onchange("product_id")
     def _onchange_product_id_secondary_unit(self):
