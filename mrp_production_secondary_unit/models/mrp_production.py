@@ -41,21 +41,6 @@ class MrpProduction(models.Model):
                 # Different UoM category, cannot convert directly
                 production.secondary_uom_qty = 0.0
 
-    def write(self, vals):
-        """Override write to ensure secondary_uom_qty doesn't interfere with standard recalculation."""
-        # If product_qty is being changed, temporarily remove it from vals to let Odoo recalculate first
-        product_qty_val = vals.pop('product_qty', None) if 'product_qty' in vals else None
-        
-        # Write without product_qty first to let Odoo recalculate move_raw_ids
-        result = super().write(vals)
-        
-        # Now update product_qty and let the compute field handle secondary_uom_qty
-        if product_qty_val is not None:
-            for production in self:
-                production.product_qty = product_qty_val
-        
-        return result
-
     @api.onchange("product_id")
     def _onchange_product_id_secondary_unit(self):
         """Set secondary unit when product changes."""
