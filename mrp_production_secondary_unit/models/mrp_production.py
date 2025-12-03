@@ -23,8 +23,11 @@ class MrpProduction(models.Model):
     @api.depends("product_uom_id", "secondary_uom_id")
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity based on primary quantity and conversion factor."""
+        # Skip computation during write operations to avoid interfering with standard recalculation
+        # The field will be recalculated via onchange when needed
+        if self.env.context.get('skip_secondary_uom_compute_during_write'):
+            return
         # Don't depend on product_qty to avoid interfering with standard recalculation
-        # The field will be recalculated when needed via onchange or manual trigger
         for production in self:
             if not production.secondary_uom_id or not production.product_qty:
                 production.secondary_uom_qty = 0.0
@@ -42,6 +45,28 @@ class MrpProduction(models.Model):
             else:
                 # Different UoM category, cannot convert directly
                 production.secondary_uom_qty = 0.0
+
+    def write(self, vals):
+        """Override write to skip secondary_uom_qty computation during write."""
+        # Skip secondary_uom_qty computation during write to avoid interfering
+        result = super().write(vals.with_context(skip_secondary_uom_compute_during_write=True))
+        # Recalculate secondary_uom_qty after write completes, but only if product_qty changed
+        if 'product_qty' in vals:
+            # Recalculate manually after standard updates complete
+            for production in self:
+                if production.secondary_uom_id and production.product_qty:
+                    factor = production.secondary_uom_id.factor
+                    secondary_uom_record = production.secondary_uom_id.uom_id
+                    if production.product_uom_id.category_id == secondary_uom_record.category_id:
+                        converted_qty = production.product_uom_id._compute_quantity(
+                            production.product_qty, secondary_uom_record
+                        )
+                        production.with_context(skip_secondary_uom_compute_during_write=True).secondary_uom_qty = converted_qty * factor
+                    else:
+                        production.with_context(skip_secondary_uom_compute_during_write=True).secondary_uom_qty = 0.0
+                elif not production.product_qty:
+                    production.with_context(skip_secondary_uom_compute_during_write=True).secondary_uom_qty = 0.0
+        return result
 
     @api.onchange("product_qty")
     def _onchange_product_qty_secondary_unit(self):
