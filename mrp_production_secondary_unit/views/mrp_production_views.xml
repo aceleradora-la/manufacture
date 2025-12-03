@@ -14,15 +14,15 @@
         </field>
     </record>
 
-    <!-- Finished Products List View -->
+    <!-- Finished Products List View - Hidden fields to ensure values are saved -->
     <record id="mrp_production_form_view_finished_products_secondary_unit" model="ir.ui.view">
         <field name="name">mrp.production.finished.products.secondary.unit</field>
         <field name="model">mrp.production</field>
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='move_finished_ids']/list//field[@name='product_id']" position="after">
-                <field name="secondary_uom_id" options="{'no_create': True}" optional="hide"/>
-                <field name="secondary_uom_qty" optional="hide"/>
+                <field name="secondary_uom_id" options="{'no_create': True}" invisible="1"/>
+                <field name="secondary_uom_qty" invisible="1"/>
             </xpath>
         </field>
     </record>

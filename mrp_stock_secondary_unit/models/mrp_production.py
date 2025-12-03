@@ -16,21 +16,31 @@ class MrpProduction(models.Model):
         bom_line=False,
     ):
         """Add secondary unit info to raw material moves."""
-        values = super()._get_move_raw_values(
-            product_id,
-            product_uom_qty,
-            product_uom,
-            operation_id=operation_id,
-            bom_line=bom_line,
-        )
-        # Get secondary unit from product if available
         # Handle both product_id (int) and product (recordset) for compatibility
         # with mrp_bom_line_formula_quantity which uses 'product' parameter
         if isinstance(product_id, (int,)):
             product = self.env["product.product"].browse(product_id)
+            # Pass product_id to super for standard modules
+            values = super()._get_move_raw_values(
+                product_id,
+                product_uom_qty,
+                product_uom,
+                operation_id=operation_id,
+                bom_line=bom_line,
+            )
         else:
+            # product_id is actually a product recordset (from formula module)
             product = product_id
-        # Also check if product is in values (some modules may set it)
+            # Pass product as-is to super (formula module expects it)
+            values = super()._get_move_raw_values(
+                product,
+                product_uom_qty,
+                product_uom,
+                operation_id=operation_id,
+                bom_line=bom_line,
+            )
+        # Get secondary unit from product if available
+        # Also check if product_id is in values (some modules may set it)
         if not product and "product_id" in values:
             product = self.env["product.product"].browse(values["product_id"])
         if product and hasattr(product.product_tmpl_id, "secondary_uom_ids"):
