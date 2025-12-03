@@ -20,9 +20,11 @@ class StockMove(models.Model):
         readonly=False,
     )
 
-    @api.depends("product_uom_qty", "product_uom", "secondary_uom_id")
+    @api.depends("product_uom", "secondary_uom_id")
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity based on primary quantity and conversion factor."""
+        # Don't depend on product_uom_qty to avoid interfering with standard recalculation
+        # The field will be recalculated when needed
         for move in self:
             if not move.secondary_uom_id or not move.product_uom_qty:
                 move.secondary_uom_qty = 0.0
