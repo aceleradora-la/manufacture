@@ -47,7 +47,23 @@ class MrpProduction(models.Model):
             secondary_uom = product.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
                 values["secondary_uom_id"] = secondary_uom.id
-                # secondary_uom_qty will be computed automatically by the compute field
+                # Calculate secondary_uom_qty if product_uom_qty is available
+                if "product_uom_qty" in values and values["product_uom_qty"]:
+                    # Convert product_uom to recordset if it's an ID
+                    if isinstance(product_uom, (int,)):
+                        product_uom_record = self.env["uom.uom"].browse(product_uom)
+                    else:
+                        product_uom_record = product_uom
+                    # Calculate secondary quantity
+                    factor = secondary_uom.factor
+                    secondary_uom_record = secondary_uom.uom_id
+                    if product_uom_record.category_id == secondary_uom_record.category_id:
+                        converted_qty = product_uom_record._compute_quantity(
+                            values["product_uom_qty"], secondary_uom_record
+                        )
+                        values["secondary_uom_qty"] = converted_qty * factor
+                    else:
+                        values["secondary_uom_qty"] = 0.0
         return values
 
     def _get_move_finished_values(

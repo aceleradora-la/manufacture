@@ -15,33 +15,26 @@ class StockMove(models.Model):
     secondary_uom_qty = fields.Float(
         string="Secondary Quantity",
         digits="Product Unit of Measure",
-        compute="_compute_secondary_uom_qty",
-        store=True,
         readonly=False,
     )
 
-    @api.depends("product_uom", "secondary_uom_id")
-    def _compute_secondary_uom_qty(self):
-        """Compute secondary quantity based on primary quantity and conversion factor."""
-        # Don't depend on product_uom_qty to avoid interfering with standard recalculation
-        # The field will be recalculated when needed
-        for move in self:
-            if not move.secondary_uom_id or not move.product_uom_qty:
-                move.secondary_uom_qty = 0.0
-                continue
-            # Get the factor from secondary unit
-            factor = move.secondary_uom_id.factor
-            secondary_uom_record = move.secondary_uom_id.uom_id
-            # Convert from product UoM to secondary UoM base, then apply factor
-            if move.product_uom.category_id == secondary_uom_record.category_id:
-                # Same UoM category, convert using UoM conversion
-                converted_qty = move.product_uom._compute_quantity(
-                    move.product_uom_qty, secondary_uom_record
-                )
-                move.secondary_uom_qty = converted_qty * factor
-            else:
-                # Different UoM category, cannot convert directly
-                move.secondary_uom_qty = 0.0
+    def _calculate_secondary_uom_qty(self):
+        """Calculate secondary quantity based on primary quantity and conversion factor."""
+        if not self.secondary_uom_id or not self.product_uom_qty:
+            return 0.0
+        # Get the factor from secondary unit
+        factor = self.secondary_uom_id.factor
+        secondary_uom_record = self.secondary_uom_id.uom_id
+        # Convert from product UoM to secondary UoM base, then apply factor
+        if self.product_uom.category_id == secondary_uom_record.category_id:
+            # Same UoM category, convert using UoM conversion
+            converted_qty = self.product_uom._compute_quantity(
+                self.product_uom_qty, secondary_uom_record
+            )
+            return converted_qty * factor
+        else:
+            # Different UoM category, cannot convert directly
+            return 0.0
 
     @api.onchange("product_id")
     def _onchange_product_id_secondary_unit(self):
@@ -50,6 +43,9 @@ class StockMove(models.Model):
             secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
                 self.secondary_uom_id = secondary_uom
+                # Calculate secondary_uom_qty if product_uom_qty is available
+                if self.product_uom_qty:
+                    self.secondary_uom_qty = self._calculate_secondary_uom_qty()
         else:
             self.secondary_uom_id = False
             self.secondary_uom_qty = 0.0

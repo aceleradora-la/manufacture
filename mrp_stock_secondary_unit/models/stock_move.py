@@ -22,17 +22,25 @@ class StockMove(models.Model):
                             secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                             if secondary_uom:
                                 move.secondary_uom_id = secondary_uom.id
+                                # Calculate secondary_uom_qty
+                                if move.product_uom_qty:
+                                    move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
                     if not move.secondary_uom_id:
                         move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                        # secondary_uom_qty will be computed automatically
+                        # Calculate secondary_uom_qty
+                        if move.product_uom_qty:
+                            move.secondary_uom_qty = move._calculate_secondary_uom_qty()
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
                     secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                     if secondary_uom:
                         move.secondary_uom_id = secondary_uom.id
+                        # Calculate secondary_uom_qty
+                        if move.product_uom_qty:
+                            move.secondary_uom_qty = move._calculate_secondary_uom_qty()
         return moves
 
     @api.model_create_multi
@@ -50,16 +58,24 @@ class StockMove(models.Model):
                             secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                             if secondary_uom:
                                 move.secondary_uom_id = secondary_uom.id
+                                # Calculate secondary_uom_qty
+                                if move.product_uom_qty:
+                                    move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
                     if not move.secondary_uom_id:
                         move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                        # secondary_uom_qty will be computed automatically by the compute field
+                        # Calculate secondary_uom_qty
+                        if move.product_uom_qty:
+                            move.secondary_uom_qty = move._calculate_secondary_uom_qty()
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
                     secondary_uom = move.product_id.product_tmpl_id.secondary_uom_ids[:1]
                     if secondary_uom:
                         move.secondary_uom_id = secondary_uom.id
+                        # Calculate secondary_uom_qty
+                        if move.product_uom_qty:
+                            move.secondary_uom_qty = move._calculate_secondary_uom_qty()
         return moves
 
