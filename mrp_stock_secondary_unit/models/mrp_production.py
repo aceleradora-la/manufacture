@@ -76,9 +76,14 @@ class MrpProduction(models.Model):
             if product_uom_qty and self.secondary_uom_id:
                 factor = self.secondary_uom_id.factor
                 secondary_uom_record = self.secondary_uom_id.uom_id
+                # Convert product_uom to recordset if it's an ID
+                if isinstance(product_uom, (int,)):
+                    product_uom_record = self.env["uom.uom"].browse(product_uom)
+                else:
+                    product_uom_record = product_uom
                 # Convert from product UoM to secondary UoM base, then apply factor
-                if product_uom.category_id == secondary_uom_record.category_id:
-                    converted_qty = product_uom._compute_quantity(
+                if product_uom_record.category_id == secondary_uom_record.category_id:
+                    converted_qty = product_uom_record._compute_quantity(
                         product_uom_qty, secondary_uom_record
                     )
                     values["secondary_uom_qty"] = converted_qty * factor
