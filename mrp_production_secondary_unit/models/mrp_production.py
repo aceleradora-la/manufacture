@@ -61,9 +61,16 @@ class MrpProduction(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Calculate secondary_uom_qty when creating production orders."""
+        """Set secondary_uom_id and calculate secondary_uom_qty when creating production orders."""
         productions = super().create(vals_list)
         for production in productions:
+            # Set secondary_uom_id from product if not already set
+            if not production.secondary_uom_id and production.product_id:
+                if hasattr(production.product_id.product_tmpl_id, "secondary_uom_ids"):
+                    secondary_uom = production.product_id.product_tmpl_id.secondary_uom_ids[:1]
+                    if secondary_uom:
+                        production.secondary_uom_id = secondary_uom
+            # Calculate secondary_uom_qty if secondary_uom_id is set
             if production.secondary_uom_id and production.product_qty:
                 production.secondary_uom_qty = production._calculate_secondary_uom_qty()
         return productions
