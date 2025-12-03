@@ -54,7 +54,9 @@ class StockMove(models.Model):
                 elif move.production_id.secondary_uom_id:
                     if not move.secondary_uom_id:
                         move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                        # secondary_uom_qty will be computed automatically
+                    # Force recalculation of secondary_uom_qty to ensure it's set
+                    if move.secondary_uom_id and move.product_uom_qty:
+                        move._compute_secondary_uom_qty()
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
