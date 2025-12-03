@@ -27,10 +27,11 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
-                    # Always update secondary_uom_id and recalculate secondary_uom_qty
-                    move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    # Calculate secondary_uom_qty
-                    if move.product_uom_qty:
+                    # Set secondary_uom_id if not already set
+                    if not move.secondary_uom_id:
+                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    # Calculate secondary_uom_qty if not already set or if it's 0
+                    if move.product_uom_qty and (not move.secondary_uom_qty or move.secondary_uom_qty == 0.0):
                         move.secondary_uom_qty = move._calculate_secondary_uom_qty()
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
@@ -63,10 +64,11 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 elif move.production_id.secondary_uom_id:
-                    # Always update secondary_uom_id and recalculate secondary_uom_qty
-                    move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    # Calculate secondary_uom_qty
-                    if move.product_uom_qty:
+                    # Set secondary_uom_id if not already set
+                    if not move.secondary_uom_id:
+                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    # Calculate secondary_uom_qty if not already set or if it's 0
+                    if move.product_uom_qty and (not move.secondary_uom_qty or move.secondary_uom_qty == 0.0):
                         move.secondary_uom_qty = move._calculate_secondary_uom_qty()
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:

@@ -88,19 +88,25 @@ class MrpProduction(models.Model):
         # For main finished product, use production order secondary unit
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Calculate secondary_uom_qty manually based on product_uom_qty
-            if product_uom_qty and self.secondary_uom_id:
+            # Calculate secondary_uom_qty manually based on product_uom_qty from values
+            # Use values["product_uom_qty"] instead of parameter, as it may have been modified by other modules
+            if "product_uom_qty" in values and values["product_uom_qty"] and self.secondary_uom_id:
                 factor = self.secondary_uom_id.factor
                 secondary_uom_record = self.secondary_uom_id.uom_id
-                # Convert product_uom to recordset if it's an ID
-                if isinstance(product_uom, (int,)):
+                # Get product_uom from values if available, otherwise use parameter
+                if "product_uom" in values:
+                    if isinstance(values["product_uom"], (int,)):
+                        product_uom_record = self.env["uom.uom"].browse(values["product_uom"])
+                    else:
+                        product_uom_record = values["product_uom"]
+                elif isinstance(product_uom, (int,)):
                     product_uom_record = self.env["uom.uom"].browse(product_uom)
                 else:
                     product_uom_record = product_uom
                 # Convert from product UoM to secondary UoM base, then apply factor
                 if product_uom_record.category_id == secondary_uom_record.category_id:
                     converted_qty = product_uom_record._compute_quantity(
-                        product_uom_qty, secondary_uom_record
+                        values["product_uom_qty"], secondary_uom_record
                     )
                     values["secondary_uom_qty"] = converted_qty * factor
                 else:
