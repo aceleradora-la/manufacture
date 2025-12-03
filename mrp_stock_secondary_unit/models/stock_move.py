@@ -30,8 +30,17 @@ class StockMove(models.Model):
                     # Always set secondary_uom_id from production order first
                     move.secondary_uom_id = move.production_id.secondary_uom_id.id
                     # Always recalculate secondary_uom_qty to ensure it's correct
-                    if move.product_uom_qty and move.product_uom:
-                        calculated_qty = move._calculate_secondary_uom_qty()
+                    if move.product_uom_qty and move.product_uom and move.secondary_uom_id:
+                        # Calculate directly to avoid dependency issues
+                        factor = move.secondary_uom_id.factor
+                        secondary_uom_record = move.secondary_uom_id.uom_id
+                        if move.product_uom.category_id == secondary_uom_record.category_id:
+                            converted_qty = move.product_uom._compute_quantity(
+                                move.product_uom_qty, secondary_uom_record
+                            )
+                            calculated_qty = converted_qty * factor
+                        else:
+                            calculated_qty = 0.0
                         # Use write to ensure the value is saved
                         move.write({"secondary_uom_qty": calculated_qty})
             # For raw materials - get from product if not already set
@@ -68,8 +77,17 @@ class StockMove(models.Model):
                     # Always set secondary_uom_id from production order first
                     move.secondary_uom_id = move.production_id.secondary_uom_id.id
                     # Always recalculate secondary_uom_qty to ensure it's correct
-                    if move.product_uom_qty and move.product_uom:
-                        calculated_qty = move._calculate_secondary_uom_qty()
+                    if move.product_uom_qty and move.product_uom and move.secondary_uom_id:
+                        # Calculate directly to avoid dependency issues
+                        factor = move.secondary_uom_id.factor
+                        secondary_uom_record = move.secondary_uom_id.uom_id
+                        if move.product_uom.category_id == secondary_uom_record.category_id:
+                            converted_qty = move.product_uom._compute_quantity(
+                                move.product_uom_qty, secondary_uom_record
+                            )
+                            calculated_qty = converted_qty * factor
+                        else:
+                            calculated_qty = 0.0
                         # Use write to ensure the value is saved
                         move.write({"secondary_uom_qty": calculated_qty})
             # For raw materials
