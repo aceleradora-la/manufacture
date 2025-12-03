@@ -59,6 +59,12 @@ class MrpProduction(models.Model):
         elif not self.secondary_uom_id:
             self.secondary_uom_qty = 0.0
 
+    @api.onchange("product_qty", "product_uom_id")
+    def _onchange_product_qty_secondary_unit(self):
+        """Recalculate secondary quantity when product quantity or UoM changes."""
+        if self.secondary_uom_id and self.product_qty and self.product_uom_id:
+            self.secondary_uom_qty = self._calculate_secondary_uom_qty()
+
     @api.model_create_multi
     def create(self, vals_list):
         """Set secondary_uom_id and calculate secondary_uom_qty when creating production orders."""
