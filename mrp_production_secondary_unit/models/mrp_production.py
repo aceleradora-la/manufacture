@@ -20,7 +20,7 @@ class MrpProduction(models.Model):
         readonly=False,
     )
 
-    @api.depends("product_qty", "product_uom_id", "secondary_uom_id")
+    @api.depends("product_uom_id", "secondary_uom_id")
     def _compute_secondary_uom_qty(self):
         """Compute secondary quantity based on primary quantity and conversion factor."""
         for production in self:
@@ -40,6 +40,16 @@ class MrpProduction(models.Model):
             else:
                 # Different UoM category, cannot convert directly
                 production.secondary_uom_qty = 0.0
+
+    def write(self, vals):
+        """Override write to recalculate secondary_uom_qty after standard updates."""
+        result = super().write(vals)
+        # Recalculate secondary_uom_qty if product_qty changed, but after standard updates
+        if 'product_qty' in vals:
+            for production in self:
+                if production.secondary_uom_id:
+                    production._compute_secondary_uom_qty()
+        return result
 
     @api.onchange("product_id")
     def _onchange_product_id_secondary_unit(self):
