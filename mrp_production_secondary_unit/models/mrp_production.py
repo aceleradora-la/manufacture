@@ -70,8 +70,24 @@ class MrpProduction(models.Model):
                     secondary_uom = production.product_id.product_tmpl_id.secondary_uom_ids[:1]
                     if secondary_uom:
                         production.secondary_uom_id = secondary_uom
-            # Calculate secondary_uom_qty if secondary_uom_id is set
-            if production.secondary_uom_id and production.product_qty:
-                production.secondary_uom_qty = production._calculate_secondary_uom_qty()
+            # Recalculate secondary_uom_qty after all fields are set
+            # Use write to ensure it's saved correctly
+            if production.secondary_uom_id and production.product_qty and production.product_uom_id:
+                calculated_qty = production._calculate_secondary_uom_qty()
+                if calculated_qty != production.secondary_uom_qty:
+                    production.write({"secondary_uom_qty": calculated_qty})
         return productions
+    
+    def write(self, vals):
+        """Recalculate secondary_uom_qty when product_qty or product_uom_id changes."""
+        result = super().write(vals)
+        # Recalculate if product_qty or product_uom_id changed
+        if "product_qty" in vals or "product_uom_id" in vals:
+            for production in self:
+                if production.secondary_uom_id and production.product_qty and production.product_uom_id:
+                    calculated_qty = production._calculate_secondary_uom_qty()
+                    if calculated_qty != production.secondary_uom_qty:
+                        # Use super().write to avoid recursion
+                        super(MrpProduction, production).write({"secondary_uom_qty": calculated_qty})
+        return result
 
