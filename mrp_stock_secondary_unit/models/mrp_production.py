@@ -110,13 +110,16 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Ensure secondary_uom_qty is calculated before using it
-            # Force recalculation if needed
-            if not self.secondary_uom_qty and self.product_qty and self.product_uom_id:
+            # Calculate secondary_uom_qty directly if not available
+            # This ensures we have the value even if computed field hasn't been saved
+            production_secondary_uom_qty = self.secondary_uom_qty
+            if not production_secondary_uom_qty and self.product_qty and self.product_uom_id:
+                # Calculate directly using mixin logic
                 self._onchange_helper_product_uom_for_secondary()
+                production_secondary_uom_qty = self.secondary_uom_qty
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
-            if self.secondary_uom_qty and self.product_qty:
+            if production_secondary_uom_qty and self.product_qty:
                 # Get move quantity (may be in values or parameter)
                 move_qty = values.get("product_uom_qty", product_uom_qty)
                 # Get move UoM (may be in values or parameter)
@@ -136,11 +139,11 @@ class MrpProduction(models.Model):
                     move_qty_in_prod_uom = move_uom._compute_quantity(move_qty, self.product_uom_id)
                     # Calculate ratio using same UoM
                     ratio = move_qty_in_prod_uom / self.product_qty
-                    values["secondary_uom_qty"] = self.secondary_uom_qty * ratio
+                    values["secondary_uom_qty"] = production_secondary_uom_qty * ratio
                 else:
                     # Fallback: use direct ratio (may be inaccurate if UoMs differ)
                     ratio = move_qty / self.product_qty
-                    values["secondary_uom_qty"] = self.secondary_uom_qty * ratio
+                    values["secondary_uom_qty"] = production_secondary_uom_qty * ratio
             elif "product_uom_qty" in values and values["product_uom_qty"]:
                 # Fallback: calculate if production doesn't have secondary_uom_qty yet
                 factor = self.secondary_uom_id.factor

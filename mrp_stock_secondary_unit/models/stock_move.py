@@ -35,8 +35,15 @@ class StockMove(models.Model):
                     # Always set secondary_uom_id from production order
                     # Copy secondary_uom_qty from production order, scaling proportionally
                     # Convert both quantities to same UoM for accurate ratio calculation
+                    # Ensure production secondary_uom_qty is calculated
+                    production = move.production_id
+                    production_secondary_uom_qty = production.secondary_uom_qty
+                    if not production_secondary_uom_qty and production.product_qty and production.product_uom_id:
+                        # Force calculation if not available
+                        production._onchange_helper_product_uom_for_secondary()
+                        production_secondary_uom_qty = production.secondary_uom_qty
                     secondary_uom_qty = 0.0
-                    if move.production_id.secondary_uom_qty:
+                    if production_secondary_uom_qty:
                         if move.production_id.product_qty and move.product_uom_qty:
                             # Convert move qty to production order UoM for accurate ratio
                             if move.product_uom.category_id == move.production_id.product_uom_id.category_id:
@@ -47,9 +54,9 @@ class StockMove(models.Model):
                             else:
                                 # Fallback: direct ratio (may be inaccurate)
                                 ratio = move.product_uom_qty / move.production_id.product_qty
-                            secondary_uom_qty = move.production_id.secondary_uom_qty * ratio
+                            secondary_uom_qty = production_secondary_uom_qty * ratio
                         else:
-                            secondary_uom_qty = move.production_id.secondary_uom_qty
+                            secondary_uom_qty = production_secondary_uom_qty
                     # Only update if not already set or if it's different
                     # This preserves values set in _get_move_finished_values
                     update_vals = {"secondary_uom_id": move.production_id.secondary_uom_id.id}
@@ -96,8 +103,15 @@ class StockMove(models.Model):
                     # Always set secondary_uom_id from production order
                     # Copy secondary_uom_qty from production order, scaling proportionally
                     # Convert both quantities to same UoM for accurate ratio calculation
+                    # Ensure production secondary_uom_qty is calculated
+                    production = move.production_id
+                    production_secondary_uom_qty = production.secondary_uom_qty
+                    if not production_secondary_uom_qty and production.product_qty and production.product_uom_id:
+                        # Force calculation if not available
+                        production._onchange_helper_product_uom_for_secondary()
+                        production_secondary_uom_qty = production.secondary_uom_qty
                     secondary_uom_qty = 0.0
-                    if move.production_id.secondary_uom_qty:
+                    if production_secondary_uom_qty:
                         if move.production_id.product_qty and move.product_uom_qty:
                             # Convert move qty to production order UoM for accurate ratio
                             if move.product_uom.category_id == move.production_id.product_uom_id.category_id:
@@ -108,9 +122,9 @@ class StockMove(models.Model):
                             else:
                                 # Fallback: direct ratio (may be inaccurate)
                                 ratio = move.product_uom_qty / move.production_id.product_qty
-                            secondary_uom_qty = move.production_id.secondary_uom_qty * ratio
+                            secondary_uom_qty = production_secondary_uom_qty * ratio
                         else:
-                            secondary_uom_qty = move.production_id.secondary_uom_qty
+                            secondary_uom_qty = production_secondary_uom_qty
                     # Only update if not already set or if it's different
                     # This preserves values set in _get_move_finished_values
                     update_vals = {"secondary_uom_id": move.production_id.secondary_uom_id.id}
