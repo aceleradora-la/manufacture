@@ -115,9 +115,12 @@ class MrpProduction(models.Model):
         if not byproduct_id and self.secondary_uom_id:
             _logger.info("MRP Production _get_move_finished_values() called for production %s", self.name)
             _logger.info("  - secondary_uom_id: %s", self.secondary_uom_id.id)
-            _logger.info("  - product_qty: %s", self.product_qty)
-            _logger.info("  - product_uom_id: %s", self.product_uom_id.id if self.product_uom_id else False)
+            _logger.info("  - product_qty (from self): %s", self.product_qty)
+            _logger.info("  - product_uom_id (from self): %s", self.product_uom_id.id if self.product_uom_id else False)
+            _logger.info("  - product_uom_qty (parameter): %s", product_uom_qty)
             values["secondary_uom_id"] = self.secondary_uom_id.id
+            # Always use current production order values, not parameters
+            # This ensures we use the latest values even if parameters are outdated
             # Calculate secondary_uom_qty directly using mixin helper
             # This ensures the value is always available, even after first write()
             # Like sale_stock_secondary_unit does with sale.order.line
