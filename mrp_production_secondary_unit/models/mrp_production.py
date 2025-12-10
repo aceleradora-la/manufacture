@@ -97,14 +97,16 @@ class MrpProduction(models.Model):
         return result
 
     def action_confirm(self):
-        """Ensure secondary_uom_qty is calculated before creating moves."""
+        """Ensure secondary_uom_qty is calculated and saved before creating moves."""
         # Force calculation of secondary_uom_qty before creating moves
         # This ensures the computed field has the correct value when _get_move_finished_values is called
         for production in self:
             if production.secondary_uom_id and production.product_qty and production.product_uom_id:
                 # Force recalculation - this updates the computed field value in memory
                 production._onchange_helper_product_uom_for_secondary()
-                # Read the value to ensure it's in cache
+                # Invalidate and read to ensure computed field is recalculated
+                production.invalidate_recordset(['secondary_uom_qty'])
+                # Read the value to ensure it's in cache and trigger recalculation if needed
                 _ = production.secondary_uom_qty
         return super().action_confirm()
 

@@ -110,15 +110,9 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Read secondary_uom_qty from production order
-            # Always force calculation to ensure we have the latest value
-            # This is critical when UoM was just changed in write()
-            if self.product_qty and self.product_uom_id:
-                # Force calculation using mixin helper
-                self._onchange_helper_product_uom_for_secondary()
-            # Read the computed value
+            # Read secondary_uom_qty directly from production order
+            # Like sale_stock_secondary_unit does with sale.order.line
             production_secondary_uom_qty = self.secondary_uom_qty
-            # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
                 # Get move quantity (may be in values or parameter)
