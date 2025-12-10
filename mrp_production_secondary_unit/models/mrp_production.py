@@ -96,11 +96,24 @@ class MrpProduction(models.Model):
         # If move_finished_ids is being created/updated, ensure secondary_uom_qty is set correctly
         if 'move_finished_ids' in vals:
             for production in self:
-                if production.secondary_uom_id and production.product_qty and production.product_uom_id:
-                    # Calculate secondary_uom_qty before write to ensure it's available
-                    production._onchange_helper_product_uom_for_secondary()
-                    production_secondary_uom_qty = production.secondary_uom_qty
-                    _logger.info("MRP Production write() - Updating move_finished_ids with secondary_uom_qty: %s", production_secondary_uom_qty)
+                if production.secondary_uom_id and production.product_qty:
+                    # If product_uom_id is being changed, we need to use the new value from vals
+                    # Otherwise use the current value
+                    product_uom_id = vals.get('product_uom_id', production.product_uom_id.id if production.product_uom_id else False)
+                    if product_uom_id:
+                        # Temporarily set product_uom_id to calculate correct secondary_uom_qty
+                        # This is critical when UoM was just changed
+                        original_uom_id = production.product_uom_id.id if production.product_uom_id else False
+                        if product_uom_id != original_uom_id:
+                            # UoM is being changed, temporarily set it to calculate correct value
+                            production.product_uom_id = product_uom_id
+                        production._onchange_helper_product_uom_for_secondary()
+                        production.invalidate_recordset(['secondary_uom_qty'])
+                        production_secondary_uom_qty = production.secondary_uom_qty
+                        # Restore original UoM if it was temporarily changed
+                        if product_uom_id != original_uom_id:
+                            production.product_uom_id = original_uom_id
+                        _logger.info("MRP Production write() - Updating move_finished_ids with secondary_uom_qty: %s", production_secondary_uom_qty)
                     # Update move_finished_ids to include correct secondary_uom_qty
                     for command in vals['move_finished_ids']:
                         if isinstance(command, (list, tuple)) and len(command) >= 3:
