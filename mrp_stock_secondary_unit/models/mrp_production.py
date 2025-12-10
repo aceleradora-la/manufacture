@@ -110,6 +110,10 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
+            # Force recalculation to ensure value is available
+            # This is critical when UoM was just changed
+            if self.product_qty and self.product_uom_id:
+                self._onchange_helper_product_uom_for_secondary()
             # Read secondary_uom_qty directly from production order
             # Like sale_stock_secondary_unit does with sale.order.line
             production_secondary_uom_qty = self.secondary_uom_qty
