@@ -114,6 +114,8 @@ class MrpProduction(models.Model):
             # This is critical when UoM was just changed
             if self.product_qty and self.product_uom_id:
                 self._onchange_helper_product_uom_for_secondary()
+                # Invalidate cache to force fresh read
+                self.invalidate_recordset(['secondary_uom_qty'])
             # Read secondary_uom_qty directly from production order
             # Like sale_stock_secondary_unit does with sale.order.line
             production_secondary_uom_qty = self.secondary_uom_qty

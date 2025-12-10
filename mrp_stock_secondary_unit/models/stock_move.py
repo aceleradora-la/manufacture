@@ -32,23 +32,14 @@ class StockMove(models.Model):
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
                 # Values should already be set by _get_move_finished_values
-                # Only update if they're missing (shouldn't happen, but just in case)
+                # Do NOT update here to avoid move splitting
+                # If values are missing, they will be set in _get_move_finished_values
                 elif move.production_id.secondary_uom_id:
+                    # Only set if completely missing (shouldn't happen)
                     if not move.secondary_uom_id:
                         move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    if not move.secondary_uom_qty and move.production_id.secondary_uom_qty:
-                        # Calculate ratio if needed
-                        if move.production_id.product_qty and move.product_uom_qty:
-                            if move.product_uom.category_id == move.production_id.product_uom_id.category_id:
-                                move_qty_in_prod_uom = move.product_uom._compute_quantity(
-                                    move.product_uom_qty, move.production_id.product_uom_id
-                                )
-                                ratio = move_qty_in_prod_uom / move.production_id.product_qty
-                            else:
-                                ratio = move.product_uom_qty / move.production_id.product_qty
-                            move.secondary_uom_qty = move.production_id.secondary_uom_qty * ratio
-                        else:
-                            move.secondary_uom_qty = move.production_id.secondary_uom_qty
+                    # Do NOT update secondary_uom_qty here - it should come from _get_move_finished_values
+                    # Updating here can cause move splitting
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):

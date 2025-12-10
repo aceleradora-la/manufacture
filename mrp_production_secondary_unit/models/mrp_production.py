@@ -90,10 +90,15 @@ class MrpProduction(models.Model):
         """Recalculate secondary_uom_qty when product_uom_id or product_qty changes."""
         result = super().write(vals)
         # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
+        # and force save to ensure it's available when _get_move_finished_values is called
         if 'product_uom_id' in vals or 'product_qty' in vals:
             for production in self:
                 if production.secondary_uom_id and production.product_qty and production.product_uom_id:
                     production._onchange_helper_product_uom_for_secondary()
+                    # Force save the computed value by reading it and invalidating cache
+                    # This ensures it's available when _get_move_finished_values is called
+                    production.invalidate_recordset(['secondary_uom_qty'])
+                    _ = production.secondary_uom_qty
         return result
 
     def action_confirm(self):
