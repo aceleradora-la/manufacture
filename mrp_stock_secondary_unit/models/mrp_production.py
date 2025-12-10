@@ -168,7 +168,8 @@ class MrpProduction(models.Model):
             else:
                 _logger.warning("  - production_secondary_uom_qty is 0 or product_qty is 0, setting secondary_uom_qty to 0")
                 values["secondary_uom_qty"] = 0.0
-            elif "product_uom_qty" in values and values["product_uom_qty"]:
+            # Fallback: calculate if production doesn't have secondary_uom_qty yet
+            if not values.get("secondary_uom_qty") and "product_uom_qty" in values and values["product_uom_qty"]:
                 # Fallback: calculate if production doesn't have secondary_uom_qty yet
                 factor = self.secondary_uom_id.factor
                 secondary_uom_record = self.secondary_uom_id.uom_id
