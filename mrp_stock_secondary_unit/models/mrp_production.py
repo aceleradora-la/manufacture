@@ -110,13 +110,34 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Calculate secondary_uom_qty directly if not available
-            # This ensures we have the value even if computed field hasn't been saved
-            production_secondary_uom_qty = self.secondary_uom_qty
-            if not production_secondary_uom_qty and self.product_qty and self.product_uom_id:
-                # Calculate directly using mixin logic
-                self._onchange_helper_product_uom_for_secondary()
-                production_secondary_uom_qty = self.secondary_uom_qty
+            # Always calculate directly to ensure we have the correct value
+            # Don't rely on computed field as it may not be saved yet
+            production_secondary_uom_qty = 0.0
+            if self.product_qty and self.product_uom_id:
+                # Calculate directly: convert from product_uom_id to secondary_uom_id
+                qty_line = self.product_qty
+                uom_line = self.product_uom_id
+                secondary_uom = self.secondary_uom_id
+                secondary_uom_record = secondary_uom.uom_id
+                product_base_uom = self.product_id.uom_id
+                
+                # Convert from line UoM to product base UoM, then to secondary UoM base, then apply factor
+                # Special case: if line UoM is the same as secondary UoM, just multiply by factor
+                if uom_line.id == secondary_uom_record.id:
+                    from odoo.tools.float_utils import float_round
+                    production_secondary_uom_qty = float_round(
+                        qty_line * secondary_uom.factor,
+                        precision_rounding=secondary_uom_record.rounding,
+                    )
+                elif uom_line.category_id == product_base_uom.category_id:
+                    base_qty = uom_line._compute_quantity(qty_line, product_base_uom)
+                    if product_base_uom.category_id == secondary_uom_record.category_id:
+                        converted_qty = product_base_uom._compute_quantity(base_qty, secondary_uom_record)
+                        from odoo.tools.float_utils import float_round
+                        production_secondary_uom_qty = float_round(
+                            converted_qty * secondary_uom.factor,
+                            precision_rounding=secondary_uom_record.rounding,
+                        )
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:

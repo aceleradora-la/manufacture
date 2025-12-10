@@ -37,11 +37,34 @@ class StockMove(models.Model):
                     # Convert both quantities to same UoM for accurate ratio calculation
                     # Ensure production secondary_uom_qty is calculated
                     production = move.production_id
-                    production_secondary_uom_qty = production.secondary_uom_qty
-                    if not production_secondary_uom_qty and production.product_qty and production.product_uom_id:
-                        # Force calculation if not available
-                        production._onchange_helper_product_uom_for_secondary()
-                        production_secondary_uom_qty = production.secondary_uom_qty
+                    # Always calculate directly to ensure we have the correct value
+                    # Don't rely on computed field as it may not be saved yet
+                    production_secondary_uom_qty = 0.0
+                    if production.product_qty and production.product_uom_id and production.secondary_uom_id:
+                        # Calculate directly: convert from product_uom_id to secondary_uom_id
+                        qty_line = production.product_qty
+                        uom_line = production.product_uom_id
+                        secondary_uom = production.secondary_uom_id
+                        secondary_uom_record = secondary_uom.uom_id
+                        product_base_uom = production.product_id.uom_id
+                        
+                        # Special case: if line UoM is the same as secondary UoM, just multiply by factor
+                        if uom_line.id == secondary_uom_record.id:
+                            from odoo.tools.float_utils import float_round
+                            production_secondary_uom_qty = float_round(
+                                qty_line * secondary_uom.factor,
+                                precision_rounding=secondary_uom_record.rounding,
+                            )
+                        # Convert from line UoM to product base UoM, then to secondary UoM base, then apply factor
+                        elif uom_line.category_id == product_base_uom.category_id:
+                            base_qty = uom_line._compute_quantity(qty_line, product_base_uom)
+                            if product_base_uom.category_id == secondary_uom_record.category_id:
+                                converted_qty = product_base_uom._compute_quantity(base_qty, secondary_uom_record)
+                                from odoo.tools.float_utils import float_round
+                                production_secondary_uom_qty = float_round(
+                                    converted_qty * secondary_uom.factor,
+                                    precision_rounding=secondary_uom_record.rounding,
+                                )
                     secondary_uom_qty = 0.0
                     if production_secondary_uom_qty:
                         if move.production_id.product_qty and move.product_uom_qty:
@@ -105,11 +128,34 @@ class StockMove(models.Model):
                     # Convert both quantities to same UoM for accurate ratio calculation
                     # Ensure production secondary_uom_qty is calculated
                     production = move.production_id
-                    production_secondary_uom_qty = production.secondary_uom_qty
-                    if not production_secondary_uom_qty and production.product_qty and production.product_uom_id:
-                        # Force calculation if not available
-                        production._onchange_helper_product_uom_for_secondary()
-                        production_secondary_uom_qty = production.secondary_uom_qty
+                    # Always calculate directly to ensure we have the correct value
+                    # Don't rely on computed field as it may not be saved yet
+                    production_secondary_uom_qty = 0.0
+                    if production.product_qty and production.product_uom_id and production.secondary_uom_id:
+                        # Calculate directly: convert from product_uom_id to secondary_uom_id
+                        qty_line = production.product_qty
+                        uom_line = production.product_uom_id
+                        secondary_uom = production.secondary_uom_id
+                        secondary_uom_record = secondary_uom.uom_id
+                        product_base_uom = production.product_id.uom_id
+                        
+                        # Special case: if line UoM is the same as secondary UoM, just multiply by factor
+                        if uom_line.id == secondary_uom_record.id:
+                            from odoo.tools.float_utils import float_round
+                            production_secondary_uom_qty = float_round(
+                                qty_line * secondary_uom.factor,
+                                precision_rounding=secondary_uom_record.rounding,
+                            )
+                        # Convert from line UoM to product base UoM, then to secondary UoM base, then apply factor
+                        elif uom_line.category_id == product_base_uom.category_id:
+                            base_qty = uom_line._compute_quantity(qty_line, product_base_uom)
+                            if product_base_uom.category_id == secondary_uom_record.category_id:
+                                converted_qty = product_base_uom._compute_quantity(base_qty, secondary_uom_record)
+                                from odoo.tools.float_utils import float_round
+                                production_secondary_uom_qty = float_round(
+                                    converted_qty * secondary_uom.factor,
+                                    precision_rounding=secondary_uom_record.rounding,
+                                )
                     secondary_uom_qty = 0.0
                     if production_secondary_uom_qty:
                         if move.production_id.product_qty and move.product_uom_qty:
