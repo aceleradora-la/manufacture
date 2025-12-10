@@ -110,14 +110,37 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
+            # Ensure secondary_uom_qty is calculated before using it
+            # Force recalculation if needed
+            if not self.secondary_uom_qty and self.product_qty and self.product_uom_id:
+                self._onchange_helper_product_uom_for_secondary()
             # Use the secondary_uom_qty from production order if available
-            # Otherwise calculate based on the ratio between production qty and move qty
+            # Scale proportionally based on quantity ratio (both in same UoM)
             if self.secondary_uom_qty and self.product_qty:
-                # Scale the secondary quantity proportionally to the move quantity
-                # If production has 21 units with secondary_qty=7560, and move has 21 units, use 7560
-                # If production has 21 units with secondary_qty=7560, and move has 10 units, use 3600
-                ratio = values.get("product_uom_qty", product_uom_qty) / self.product_qty
-                values["secondary_uom_qty"] = self.secondary_uom_qty * ratio
+                # Get move quantity (may be in values or parameter)
+                move_qty = values.get("product_uom_qty", product_uom_qty)
+                # Get move UoM (may be in values or parameter)
+                if "product_uom" in values:
+                    move_uom = values["product_uom"]
+                    if isinstance(move_uom, (int,)):
+                        move_uom = self.env["uom.uom"].browse(move_uom)
+                elif isinstance(product_uom, (int,)):
+                    move_uom = self.env["uom.uom"].browse(product_uom)
+                else:
+                    move_uom = product_uom
+                
+                # Convert both quantities to product base UoM for accurate ratio calculation
+                product_base_uom = self.product_id.uom_id
+                if move_uom and move_uom.category_id == self.product_uom_id.category_id:
+                    # Convert move qty to production order UoM
+                    move_qty_in_prod_uom = move_uom._compute_quantity(move_qty, self.product_uom_id)
+                    # Calculate ratio using same UoM
+                    ratio = move_qty_in_prod_uom / self.product_qty
+                    values["secondary_uom_qty"] = self.secondary_uom_qty * ratio
+                else:
+                    # Fallback: use direct ratio (may be inaccurate if UoMs differ)
+                    ratio = move_qty / self.product_qty
+                    values["secondary_uom_qty"] = self.secondary_uom_qty * ratio
             elif "product_uom_qty" in values and values["product_uom_qty"]:
                 # Fallback: calculate if production doesn't have secondary_uom_qty yet
                 factor = self.secondary_uom_id.factor
