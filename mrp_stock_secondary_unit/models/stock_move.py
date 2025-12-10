@@ -57,13 +57,16 @@ class StockMove(models.Model):
                             secondary_uom_qty = production_secondary_uom_qty * ratio
                         else:
                             secondary_uom_qty = production_secondary_uom_qty
-                    # Only update if not already set or if it's different
-                    # This preserves values set in _get_move_finished_values
-                    update_vals = {"secondary_uom_id": move.production_id.secondary_uom_id.id}
-                    if not move.secondary_uom_qty or abs(move.secondary_uom_qty - secondary_uom_qty) > 0.0001:
-                        update_vals["secondary_uom_qty"] = secondary_uom_qty
-                    if update_vals:
-                        move.write(update_vals)
+                    # Only update if not already set (from _get_move_finished_values) or if it's 0
+                    # This preserves values set in _get_move_finished_values and avoids unnecessary writes
+                    # that could cause move splitting
+                    if not move.secondary_uom_id or move.secondary_uom_id.id != move.production_id.secondary_uom_id.id:
+                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    # Only update secondary_uom_qty if it's not already set or is 0
+                    # This preserves values from _get_move_finished_values
+                    if not move.secondary_uom_qty or abs(move.secondary_uom_qty) < 0.0001:
+                        if abs(secondary_uom_qty) > 0.0001:
+                            move.secondary_uom_qty = secondary_uom_qty
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
@@ -125,13 +128,16 @@ class StockMove(models.Model):
                             secondary_uom_qty = production_secondary_uom_qty * ratio
                         else:
                             secondary_uom_qty = production_secondary_uom_qty
-                    # Only update if not already set or if it's different
-                    # This preserves values set in _get_move_finished_values
-                    update_vals = {"secondary_uom_id": move.production_id.secondary_uom_id.id}
-                    if not move.secondary_uom_qty or abs(move.secondary_uom_qty - secondary_uom_qty) > 0.0001:
-                        update_vals["secondary_uom_qty"] = secondary_uom_qty
-                    if update_vals:
-                        move.write(update_vals)
+                    # Only update if not already set (from _get_move_finished_values) or if it's 0
+                    # This preserves values set in _get_move_finished_values and avoids unnecessary writes
+                    # that could cause move splitting
+                    if not move.secondary_uom_id or move.secondary_uom_id.id != move.production_id.secondary_uom_id.id:
+                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    # Only update secondary_uom_qty if it's not already set or is 0
+                    # This preserves values from _get_move_finished_values
+                    if not move.secondary_uom_qty or abs(move.secondary_uom_qty) < 0.0001:
+                        if abs(secondary_uom_qty) > 0.0001:
+                            move.secondary_uom_qty = secondary_uom_qty
             # For raw materials
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):

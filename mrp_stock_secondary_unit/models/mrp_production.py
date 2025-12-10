@@ -110,20 +110,15 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Ensure secondary_uom_qty is calculated using the mixin's computed field
-            # The mixin handles all conversions including when units are the same
+            # Read secondary_uom_qty directly from database to ensure we get the saved value
+            # The computed field may not be in cache, so read from a fresh recordset
+            production = self.browse(self.id) if self.id else self
             # Force recalculation to ensure computed field is up to date
-            if self.product_qty and self.product_uom_id:
-                self._onchange_helper_product_uom_for_secondary()
-            # Read the computed value - the computed field should be available after recalculation
-            # If it's still 0, it means the computed field didn't calculate correctly
-            # In that case, we need to ensure the production order is saved first
-            production_secondary_uom_qty = self.secondary_uom_qty
-            # If still 0, try to read from a fresh recordset
-            if not production_secondary_uom_qty:
-                fresh_production = self.browse(self.id)
-                fresh_production._onchange_helper_product_uom_for_secondary()
-                production_secondary_uom_qty = fresh_production.secondary_uom_qty
+            if production.product_qty and production.product_uom_id:
+                production._onchange_helper_product_uom_for_secondary()
+            # Read the computed value - invalidate cache first to force recalculation
+            production.invalidate_recordset(['secondary_uom_qty'])
+            production_secondary_uom_qty = production.secondary_uom_qty
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
