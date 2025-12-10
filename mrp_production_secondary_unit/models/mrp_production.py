@@ -159,9 +159,13 @@ class MrpProduction(models.Model):
                                 production.product_id.id if production.product_id else False,
                                 move.secondary_uom_id.id if move.secondary_uom_id else False,
                                 move.secondary_uom_qty, move.product_uom_qty)
-                    if move.product_id == production.product_id and move.secondary_uom_id:
+                    if move.product_id == production.product_id:
+                        # Set secondary_uom_id if missing
+                        if not move.secondary_uom_id and production.secondary_uom_id:
+                            _logger.info("  - Setting move %s secondary_uom_id to %s", move.id, production.secondary_uom_id.id)
+                            move.secondary_uom_id = production.secondary_uom_id.id
                         # Recalculate secondary_uom_qty for the move based on current production values
-                        if production.product_qty and move.product_uom_qty:
+                        if production.secondary_uom_id and production.product_qty and move.product_uom_qty:
                             ratio = move.product_uom_qty / production.product_qty
                             move_secondary_uom_qty = secondary_uom_qty * ratio
                             _logger.info("  - Calculated move secondary_uom_qty: %s (ratio: %s, current: %s)", 
@@ -172,8 +176,8 @@ class MrpProduction(models.Model):
                             else:
                                 _logger.info("  - Move %s secondary_uom_qty is already correct", move.id)
                         else:
-                            _logger.info("  - Move %s: missing product_qty or move.product_uom_qty", move.id)
+                            _logger.info("  - Move %s: missing secondary_uom_id, product_qty or move.product_uom_qty", move.id)
                     else:
-                        _logger.info("  - Move %s: not main product or missing secondary_uom_id", move.id)
+                        _logger.info("  - Move %s: not main product", move.id)
         return super().action_confirm()
 
