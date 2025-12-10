@@ -111,12 +111,13 @@ class MrpProduction(models.Model):
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
             # Read secondary_uom_qty from production order
-            # Force calculation if not available (may happen when UoM was just changed)
-            production_secondary_uom_qty = self.secondary_uom_qty
-            if not production_secondary_uom_qty and self.product_qty and self.product_uom_id:
-                # Value not available, force calculation using mixin helper
+            # Always force calculation to ensure we have the latest value
+            # This is critical when UoM was just changed in write()
+            if self.product_qty and self.product_uom_id:
+                # Force calculation using mixin helper
                 self._onchange_helper_product_uom_for_secondary()
-                production_secondary_uom_qty = self.secondary_uom_qty
+            # Read the computed value
+            production_secondary_uom_qty = self.secondary_uom_qty
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
