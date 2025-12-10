@@ -110,17 +110,13 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Calculate secondary_uom_qty directly if not available
-            # This ensures we have the value even if computed field hasn't been saved
+            # Ensure secondary_uom_qty is calculated using the mixin's computed field
+            # The mixin handles all conversions including when units are the same
+            if self.product_qty and self.product_uom_id:
+                # Force recalculation to ensure computed field is up to date
+                self._onchange_helper_product_uom_for_secondary()
+            # Read the computed value (it handles all conversion cases correctly)
             production_secondary_uom_qty = self.secondary_uom_qty
-            if not production_secondary_uom_qty and self.product_qty and self.product_uom_id:
-                # Special case: if production UoM is the same as secondary UoM, calculate directly
-                if self.product_uom_id.id == self.secondary_uom_id.uom_id.id:
-                    production_secondary_uom_qty = self.product_qty * self.secondary_uom_id.factor
-                else:
-                    # Calculate directly using mixin logic
-                    self._onchange_helper_product_uom_for_secondary()
-                    production_secondary_uom_qty = self.secondary_uom_qty
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
