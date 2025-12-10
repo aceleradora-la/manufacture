@@ -146,6 +146,9 @@ class MrpProduction(models.Model):
                 else:
                     move_uom = product_uom
                 
+                _logger.info("  - move_qty: %s, move_uom: %s", move_qty, move_uom.name if move_uom else None)
+                _logger.info("  - production_qty: %s, production_uom: %s", self.product_qty, self.product_uom_id.name if self.product_uom_id else None)
+                
                 # Convert both quantities to product base UoM for accurate ratio calculation
                 product_base_uom = self.product_id.uom_id
                 if move_uom and move_uom.category_id == self.product_uom_id.category_id:
@@ -153,11 +156,18 @@ class MrpProduction(models.Model):
                     move_qty_in_prod_uom = move_uom._compute_quantity(move_qty, self.product_uom_id)
                     # Calculate ratio using same UoM
                     ratio = move_qty_in_prod_uom / self.product_qty
-                    values["secondary_uom_qty"] = production_secondary_uom_qty * ratio
+                    calculated_secondary_uom_qty = production_secondary_uom_qty * ratio
+                    _logger.info("  - Calculated ratio: %s, final secondary_uom_qty: %s", ratio, calculated_secondary_uom_qty)
+                    values["secondary_uom_qty"] = calculated_secondary_uom_qty
                 else:
                     # Fallback: use direct ratio (may be inaccurate if UoMs differ)
                     ratio = move_qty / self.product_qty
-                    values["secondary_uom_qty"] = production_secondary_uom_qty * ratio
+                    calculated_secondary_uom_qty = production_secondary_uom_qty * ratio
+                    _logger.info("  - Fallback ratio: %s, final secondary_uom_qty: %s", ratio, calculated_secondary_uom_qty)
+                    values["secondary_uom_qty"] = calculated_secondary_uom_qty
+            else:
+                _logger.warning("  - production_secondary_uom_qty is 0 or product_qty is 0, setting secondary_uom_qty to 0")
+                values["secondary_uom_qty"] = 0.0
             elif "product_uom_qty" in values and values["product_uom_qty"]:
                 # Fallback: calculate if production doesn't have secondary_uom_qty yet
                 factor = self.secondary_uom_id.factor
