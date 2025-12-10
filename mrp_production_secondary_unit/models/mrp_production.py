@@ -46,7 +46,7 @@ class MrpProduction(models.Model):
             if hasattr(self.product_id, "secondary_uom_ids") and self.product_id.secondary_uom_ids:
                 secondary_uom = self.product_id.secondary_uom_ids[:1]
             elif hasattr(self.product_id.product_tmpl_id, "secondary_uom_ids"):
-            secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
+                secondary_uom = self.product_id.product_tmpl_id.secondary_uom_ids[:1]
             if secondary_uom:
                 self.secondary_uom_id = secondary_uom
                 if self.product_qty == 1.0:
@@ -199,4 +199,3 @@ class MrpProduction(models.Model):
                     else:
                         _logger.info("  - Move %s: not main product", move.id)
         return super().action_confirm()
-
