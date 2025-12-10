@@ -93,6 +93,30 @@ class MrpProduction(models.Model):
     def write(self, vals):
         """Recalculate secondary_uom_qty when product_uom_id or product_qty changes."""
         _logger.info("MRP Production write() called with vals: %s", vals)
+        # If move_finished_ids is being created/updated, ensure secondary_uom_qty is set correctly
+        if 'move_finished_ids' in vals:
+            for production in self:
+                if production.secondary_uom_id and production.product_qty and production.product_uom_id:
+                    # Calculate secondary_uom_qty before write to ensure it's available
+                    production._onchange_helper_product_uom_for_secondary()
+                    production_secondary_uom_qty = production.secondary_uom_qty
+                    _logger.info("MRP Production write() - Updating move_finished_ids with secondary_uom_qty: %s", production_secondary_uom_qty)
+                    # Update move_finished_ids to include correct secondary_uom_qty
+                    for command in vals['move_finished_ids']:
+                        if isinstance(command, (list, tuple)) and len(command) >= 3:
+                            if command[0] in (0, 1):  # create or update
+                                move_vals = command[2] if len(command) > 2 else {}
+                                if 'secondary_uom_id' not in move_vals or not move_vals.get('secondary_uom_id'):
+                                    move_vals['secondary_uom_id'] = production.secondary_uom_id.id
+                                # Calculate secondary_uom_qty for the move based on its quantity
+                                if 'product_uom_qty' in move_vals and move_vals['product_uom_qty']:
+                                    move_qty = move_vals['product_uom_qty']
+                                    if production.product_qty:
+                                        ratio = move_qty / production.product_qty
+                                        move_vals['secondary_uom_qty'] = production_secondary_uom_qty * ratio
+                                        _logger.info("  - Updated move secondary_uom_qty: %s (ratio: %s)", move_vals['secondary_uom_qty'], ratio)
+                                elif not move_vals.get('secondary_uom_qty'):
+                                    move_vals['secondary_uom_qty'] = production_secondary_uom_qty
         result = super().write(vals)
         # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
         # and force save to ensure it's available when _get_move_finished_values is called
