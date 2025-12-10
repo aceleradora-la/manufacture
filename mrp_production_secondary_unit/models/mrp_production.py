@@ -152,14 +152,28 @@ class MrpProduction(models.Model):
                 _logger.info("  - secondary_uom_qty after recalculation: %s", secondary_uom_qty)
                 # Update existing moves if they were created with wrong values
                 # This happens when quantity was changed before saving
+                _logger.info("  - Checking existing moves: %s moves found", len(production.move_finished_ids))
                 for move in production.move_finished_ids:
+                    _logger.info("  - Move %s: product_id=%s, production.product_id=%s, secondary_uom_id=%s, secondary_uom_qty=%s, product_uom_qty=%s", 
+                                move.id, move.product_id.id if move.product_id else False, 
+                                production.product_id.id if production.product_id else False,
+                                move.secondary_uom_id.id if move.secondary_uom_id else False,
+                                move.secondary_uom_qty, move.product_uom_qty)
                     if move.product_id == production.product_id and move.secondary_uom_id:
                         # Recalculate secondary_uom_qty for the move based on current production values
                         if production.product_qty and move.product_uom_qty:
                             ratio = move.product_uom_qty / production.product_qty
                             move_secondary_uom_qty = secondary_uom_qty * ratio
+                            _logger.info("  - Calculated move secondary_uom_qty: %s (ratio: %s, current: %s)", 
+                                        move_secondary_uom_qty, ratio, move.secondary_uom_qty)
                             if abs(move.secondary_uom_qty - move_secondary_uom_qty) > 0.01:
                                 _logger.info("  - Updating move %s secondary_uom_qty from %s to %s", move.id, move.secondary_uom_qty, move_secondary_uom_qty)
                                 move.secondary_uom_qty = move_secondary_uom_qty
+                            else:
+                                _logger.info("  - Move %s secondary_uom_qty is already correct", move.id)
+                        else:
+                            _logger.info("  - Move %s: missing product_qty or move.product_uom_qty", move.id)
+                    else:
+                        _logger.info("  - Move %s: not main product or missing secondary_uom_id", move.id)
         return super().action_confirm()
 
