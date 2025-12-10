@@ -31,42 +31,24 @@ class StockMove(models.Model):
                                 if move.product_uom_qty:
                                     move.secondary_uom_qty = move._calculate_secondary_uom_qty()
                 # For main finished product - use production order secondary unit
+                # Values should already be set by _get_move_finished_values
+                # Only update if they're missing (shouldn't happen, but just in case)
                 elif move.production_id.secondary_uom_id:
-                    # Always set secondary_uom_id from production order
-                    # Copy secondary_uom_qty from production order, scaling proportionally
-                    # Convert both quantities to same UoM for accurate ratio calculation
-                    # Ensure production secondary_uom_qty is calculated
-                    production = move.production_id
-                    production_secondary_uom_qty = production.secondary_uom_qty
-                    if not production_secondary_uom_qty and production.product_qty and production.product_uom_id:
-                        # Force calculation if not available
-                        production._onchange_helper_product_uom_for_secondary()
-                        production_secondary_uom_qty = production.secondary_uom_qty
-                    secondary_uom_qty = 0.0
-                    if production_secondary_uom_qty:
+                    if not move.secondary_uom_id:
+                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
+                    if not move.secondary_uom_qty and move.production_id.secondary_uom_qty:
+                        # Calculate ratio if needed
                         if move.production_id.product_qty and move.product_uom_qty:
-                            # Convert move qty to production order UoM for accurate ratio
                             if move.product_uom.category_id == move.production_id.product_uom_id.category_id:
                                 move_qty_in_prod_uom = move.product_uom._compute_quantity(
                                     move.product_uom_qty, move.production_id.product_uom_id
                                 )
                                 ratio = move_qty_in_prod_uom / move.production_id.product_qty
                             else:
-                                # Fallback: direct ratio (may be inaccurate)
                                 ratio = move.product_uom_qty / move.production_id.product_qty
-                            secondary_uom_qty = production_secondary_uom_qty * ratio
+                            move.secondary_uom_qty = move.production_id.secondary_uom_qty * ratio
                         else:
-                            secondary_uom_qty = production_secondary_uom_qty
-                    # Only update if not already set (from _get_move_finished_values) or if it's 0
-                    # This preserves values set in _get_move_finished_values and avoids unnecessary writes
-                    # that could cause move splitting
-                    if not move.secondary_uom_id or move.secondary_uom_id.id != move.production_id.secondary_uom_id.id:
-                        move.secondary_uom_id = move.production_id.secondary_uom_id.id
-                    # Only update secondary_uom_qty if it's not already set or is 0
-                    # This preserves values from _get_move_finished_values
-                    if not move.secondary_uom_qty or abs(move.secondary_uom_qty) < 0.0001:
-                        if abs(secondary_uom_qty) > 0.0001:
-                            move.secondary_uom_qty = secondary_uom_qty
+                            move.secondary_uom_qty = move.production_id.secondary_uom_qty
             # For raw materials - get from product if not already set
             elif move.raw_material_production_id and not move.secondary_uom_id:
                 if move.product_id and hasattr(move.product_id.product_tmpl_id, "secondary_uom_ids"):
