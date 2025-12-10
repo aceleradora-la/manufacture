@@ -86,6 +86,16 @@ class MrpProduction(models.Model):
                             production._onchange_helper_product_uom_for_secondary()
         return productions
 
+    def write(self, vals):
+        """Recalculate secondary_uom_qty when product_uom_id or product_qty changes."""
+        result = super().write(vals)
+        # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
+        if 'product_uom_id' in vals or 'product_qty' in vals:
+            for production in self:
+                if production.secondary_uom_id and production.product_qty and production.product_uom_id:
+                    production._onchange_helper_product_uom_for_secondary()
+        return result
+
     def action_confirm(self):
         """Ensure secondary_uom_qty is calculated before creating moves."""
         # Force calculation of secondary_uom_qty before creating moves
