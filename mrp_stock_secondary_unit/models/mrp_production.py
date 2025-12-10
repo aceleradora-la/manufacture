@@ -110,15 +110,10 @@ class MrpProduction(models.Model):
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
             values["secondary_uom_id"] = self.secondary_uom_id.id
-            # Read secondary_uom_qty directly from database to ensure we get the saved value
-            # The computed field may not be in cache, so read from a fresh recordset
-            production = self.browse(self.id) if self.id else self
-            # Force recalculation to ensure computed field is up to date
-            if production.product_qty and production.product_uom_id:
-                production._onchange_helper_product_uom_for_secondary()
-            # Read the computed value - invalidate cache first to force recalculation
-            production.invalidate_recordset(['secondary_uom_qty'])
-            production_secondary_uom_qty = production.secondary_uom_qty
+            # Read secondary_uom_qty from production order
+            # The value should already be calculated by mrp_production_secondary_unit
+            # Just read it directly - if it's 0, it means it wasn't calculated yet
+            production_secondary_uom_qty = self.secondary_uom_qty
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
