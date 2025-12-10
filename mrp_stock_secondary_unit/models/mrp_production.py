@@ -112,11 +112,18 @@ class MrpProduction(models.Model):
             values["secondary_uom_id"] = self.secondary_uom_id.id
             # Ensure secondary_uom_qty is calculated using the mixin's computed field
             # The mixin handles all conversions including when units are the same
+            # Force recalculation to ensure computed field is up to date
             if self.product_qty and self.product_uom_id:
-                # Force recalculation to ensure computed field is up to date
                 self._onchange_helper_product_uom_for_secondary()
-            # Read the computed value (it handles all conversion cases correctly)
+            # Read the computed value - the computed field should be available after recalculation
+            # If it's still 0, it means the computed field didn't calculate correctly
+            # In that case, we need to ensure the production order is saved first
             production_secondary_uom_qty = self.secondary_uom_qty
+            # If still 0, try to read from a fresh recordset
+            if not production_secondary_uom_qty:
+                fresh_production = self.browse(self.id)
+                fresh_production._onchange_helper_product_uom_for_secondary()
+                production_secondary_uom_qty = fresh_production.secondary_uom_qty
             # Use the secondary_uom_qty from production order if available
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
