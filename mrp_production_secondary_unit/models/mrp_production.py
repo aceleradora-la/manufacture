@@ -150,5 +150,16 @@ class MrpProduction(models.Model):
                 # Read the value to ensure it's in cache and trigger recalculation if needed
                 secondary_uom_qty = production.secondary_uom_qty
                 _logger.info("  - secondary_uom_qty after recalculation: %s", secondary_uom_qty)
+                # Update existing moves if they were created with wrong values
+                # This happens when quantity was changed before saving
+                for move in production.move_finished_ids:
+                    if move.product_id == production.product_id and move.secondary_uom_id:
+                        # Recalculate secondary_uom_qty for the move based on current production values
+                        if production.product_qty and move.product_uom_qty:
+                            ratio = move.product_uom_qty / production.product_qty
+                            move_secondary_uom_qty = secondary_uom_qty * ratio
+                            if abs(move.secondary_uom_qty - move_secondary_uom_qty) > 0.01:
+                                _logger.info("  - Updating move %s secondary_uom_qty from %s to %s", move.id, move.secondary_uom_qty, move_secondary_uom_qty)
+                                move.secondary_uom_qty = move_secondary_uom_qty
         return super().action_confirm()
 
