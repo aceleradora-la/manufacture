@@ -1,7 +1,11 @@
 # Copyright 2025 Aceleradora
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
+import logging
+
 from odoo import models
+
+_logger = logging.getLogger(__name__)
 
 
 class MrpProduction(models.Model):
@@ -109,6 +113,10 @@ class MrpProduction(models.Model):
         # For main finished product, use production order secondary unit
         # Copy directly from production order, like sale_stock_secondary_unit does
         if not byproduct_id and self.secondary_uom_id:
+            _logger.info("MRP Production _get_move_finished_values() called for production %s", self.name)
+            _logger.info("  - secondary_uom_id: %s", self.secondary_uom_id.id)
+            _logger.info("  - product_qty: %s", self.product_qty)
+            _logger.info("  - product_uom_id: %s", self.product_uom_id.id if self.product_uom_id else False)
             values["secondary_uom_id"] = self.secondary_uom_id.id
             # Calculate secondary_uom_qty directly using mixin helper
             # This ensures the value is always available, even after first write()
@@ -116,11 +124,14 @@ class MrpProduction(models.Model):
             if self.product_qty and self.product_uom_id:
                 # Use mixin helper to calculate the value directly
                 # This is more reliable than reading the computed field
+                _logger.info("  - Calling _onchange_helper_product_uom_for_secondary()")
                 self._onchange_helper_product_uom_for_secondary()
                 # Read the calculated value
                 production_secondary_uom_qty = self.secondary_uom_qty
+                _logger.info("  - Calculated production_secondary_uom_qty: %s", production_secondary_uom_qty)
             else:
                 production_secondary_uom_qty = 0.0
+                _logger.info("  - production_secondary_uom_qty set to 0.0 (missing product_qty or product_uom_id)")
             # Scale proportionally based on quantity ratio (both in same UoM)
             if production_secondary_uom_qty and self.product_qty:
                 # Get move quantity (may be in values or parameter)

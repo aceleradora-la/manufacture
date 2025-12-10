@@ -1,7 +1,11 @@
 # Copyright 2025 Aceleradora
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
+import logging
+
 from odoo import api, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class MrpProduction(models.Model):
@@ -88,30 +92,39 @@ class MrpProduction(models.Model):
 
     def write(self, vals):
         """Recalculate secondary_uom_qty when product_uom_id or product_qty changes."""
+        _logger.info("MRP Production write() called with vals: %s", vals)
         result = super().write(vals)
         # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
         # and force save to ensure it's available when _get_move_finished_values is called
         if 'product_uom_id' in vals or 'product_qty' in vals:
             for production in self:
+                _logger.info("MRP Production write() - Recalculating secondary_uom_qty for production %s", production.name)
+                _logger.info("  - secondary_uom_id: %s", production.secondary_uom_id.id if production.secondary_uom_id else False)
+                _logger.info("  - product_qty: %s", production.product_qty)
+                _logger.info("  - product_uom_id: %s", production.product_uom_id.id if production.product_uom_id else False)
                 if production.secondary_uom_id and production.product_qty and production.product_uom_id:
                     production._onchange_helper_product_uom_for_secondary()
                     # Force save the computed value by reading it and invalidating cache
                     # This ensures it's available when _get_move_finished_values is called
                     production.invalidate_recordset(['secondary_uom_qty'])
-                    _ = production.secondary_uom_qty
+                    secondary_uom_qty = production.secondary_uom_qty
+                    _logger.info("  - Calculated secondary_uom_qty: %s", secondary_uom_qty)
         return result
 
     def action_confirm(self):
         """Ensure secondary_uom_qty is calculated and saved before creating moves."""
+        _logger.info("MRP Production action_confirm() called for: %s", [p.name for p in self])
         # Force calculation of secondary_uom_qty before creating moves
         # This ensures the computed field has the correct value when _get_move_finished_values is called
         for production in self:
             if production.secondary_uom_id and production.product_qty and production.product_uom_id:
+                _logger.info("MRP Production action_confirm() - Recalculating secondary_uom_qty for production %s", production.name)
                 # Force recalculation - this updates the computed field value in memory
                 production._onchange_helper_product_uom_for_secondary()
                 # Invalidate and read to ensure computed field is recalculated
                 production.invalidate_recordset(['secondary_uom_qty'])
                 # Read the value to ensure it's in cache and trigger recalculation if needed
-                _ = production.secondary_uom_qty
+                secondary_uom_qty = production.secondary_uom_qty
+                _logger.info("  - secondary_uom_qty after recalculation: %s", secondary_uom_qty)
         return super().action_confirm()
 
