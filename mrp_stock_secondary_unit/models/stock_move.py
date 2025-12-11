@@ -9,9 +9,18 @@ class StockMove(models.Model):
 
     def _action_confirm(self, merge=True, merge_into=False):
         """Transfer secondary unit info when confirming moves from MO."""
+        import logging
+        _logger = logging.getLogger(__name__)
+        _logger.info("StockMove _action_confirm() called with merge=%s, merge_into=%s", merge, merge_into)
         moves = super()._action_confirm(merge=merge, merge_into=merge_into)
+        _logger.info("StockMove _action_confirm() - After super(), got %s moves", len(moves))
         # Update secondary unit for moves related to manufacturing orders
         for move in moves:
+            _logger.info("StockMove _action_confirm() - Processing move %s: product=%s, production_id=%s, secondary_uom_id=%s, secondary_uom_qty=%s, product_uom_qty=%s",
+                        move.id, move.product_id.name if move.product_id else None,
+                        move.production_id.name if move.production_id else None,
+                        move.secondary_uom_id.id if move.secondary_uom_id else False,
+                        move.secondary_uom_qty, move.product_uom_qty)
             # For finished products and byproducts from production order
             if move.production_id:
                 # Check if it's a byproduct (different from main product)

@@ -60,40 +60,58 @@ class MrpProduction(models.Model):
                 values["secondary_uom_id"] = secondary_uom.id
                 # Calculate secondary_uom_qty if product_uom_qty is available
                 if "product_uom_qty" in values and values["product_uom_qty"]:
+                    _logger.info("MRP Production _get_move_raw_values() called for product %s", product.name if product else "Unknown")
+                    _logger.info("  - product_uom_qty (from values): %s", values["product_uom_qty"])
+                    _logger.info("  - product_uom (parameter): %s", product_uom)
                     # Convert product_uom to recordset if it's an ID
                     if isinstance(product_uom, (int,)):
                         product_uom_record = self.env["uom.uom"].browse(product_uom)
                     else:
                         product_uom_record = product_uom
+                    _logger.info("  - product_uom_record: %s (ID: %s)", product_uom_record.name if product_uom_record else None, product_uom_record.id if product_uom_record else None)
                     # Calculate secondary quantity using product's base UoM
                     factor = secondary_uom.factor
                     secondary_uom_record = secondary_uom.uom_id
                     product_base_uom = product.uom_id
+                    _logger.info("  - factor: %s, secondary_uom_record: %s, product_base_uom: %s", factor, secondary_uom_record.name if secondary_uom_record else None, product_base_uom.name if product_base_uom else None)
                     # First convert from move UoM to product's base UoM
                     if product_uom_record.category_id == product_base_uom.category_id:
                         base_qty = product_uom_record._compute_quantity(
                             values["product_uom_qty"], product_base_uom
                         )
+                        _logger.info("  - base_qty (converted to product base UoM): %s", base_qty)
                         # Then convert from product's base UoM to secondary UoM base, then apply factor
                         if product_base_uom.category_id == secondary_uom_record.category_id:
                             converted_qty = product_base_uom._compute_quantity(
                                 base_qty, secondary_uom_record
                             )
+                            _logger.info("  - converted_qty (to secondary UoM base): %s", converted_qty)
+                            calculated_qty = converted_qty * factor
+                            _logger.info("  - calculated_qty (before rounding): %s", calculated_qty)
                             # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
                             precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
-                            values["secondary_uom_qty"] = float_round(converted_qty * factor, precision_digits=precision)
+                            _logger.info("  - precision: %s", precision)
+                            values["secondary_uom_qty"] = float_round(calculated_qty, precision_digits=precision)
+                            _logger.info("  - final secondary_uom_qty (after rounding): %s", values["secondary_uom_qty"])
                         else:
                             values["secondary_uom_qty"] = 0.0
+                            _logger.warning("  - Categories don't match: product_base_uom.category_id != secondary_uom_record.category_id")
                     # Fallback: try direct conversion if categories match
                     elif product_uom_record.category_id == secondary_uom_record.category_id:
                         converted_qty = product_uom_record._compute_quantity(
                             values["product_uom_qty"], secondary_uom_record
                         )
+                        _logger.info("  - converted_qty (direct conversion, before rounding): %s", converted_qty)
+                        calculated_qty = converted_qty * factor
+                        _logger.info("  - calculated_qty (before rounding): %s", calculated_qty)
                         # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
                         precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
-                        values["secondary_uom_qty"] = float_round(converted_qty * factor, precision_digits=precision)
+                        _logger.info("  - precision: %s", precision)
+                        values["secondary_uom_qty"] = float_round(calculated_qty, precision_digits=precision)
+                        _logger.info("  - final secondary_uom_qty (after rounding): %s", values["secondary_uom_qty"])
                     else:
                         values["secondary_uom_qty"] = 0.0
+                        _logger.warning("  - Categories don't match for any conversion path")
         return values
 
     def _get_move_finished_values(
@@ -154,21 +172,25 @@ class MrpProduction(models.Model):
                 else:
                     move_uom = product_uom
                 
-                _logger.info("  - move_qty: %s, move_uom: %s", move_qty, move_uom.name if move_uom else None)
-                _logger.info("  - production_qty: %s, production_uom: %s", self.product_qty, self.product_uom_id.name if self.product_uom_id else None)
-                
-                # Convert both quantities to product base UoM for accurate ratio calculation
-                product_base_uom = self.product_id.uom_id
-                if move_uom and move_uom.category_id == self.product_uom_id.category_id:
-                    # Convert move qty to production order UoM
-                    move_qty_in_prod_uom = move_uom._compute_quantity(move_qty, self.product_uom_id)
-                    # Calculate ratio using same UoM
-                    ratio = move_qty_in_prod_uom / self.product_qty
-                    calculated_secondary_uom_qty = production_secondary_uom_qty * ratio
-                    # Round according to field precision to avoid decimal errors
-                    precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
-                    values["secondary_uom_qty"] = float_round(calculated_secondary_uom_qty, precision_digits=precision)
-                    _logger.info("  - Calculated ratio: %s, final secondary_uom_qty: %s", ratio, values["secondary_uom_qty"])
+            _logger.info("  - move_qty: %s, move_uom: %s", move_qty, move_uom.name if move_uom else None)
+            _logger.info("  - production_qty: %s, production_uom: %s", self.product_qty, self.product_uom_id.name if self.product_uom_id else None)
+            
+            # Convert both quantities to product base UoM for accurate ratio calculation
+            product_base_uom = self.product_id.uom_id
+            if move_uom and move_uom.category_id == self.product_uom_id.category_id:
+                # Convert move qty to production order UoM
+                move_qty_in_prod_uom = move_uom._compute_quantity(move_qty, self.product_uom_id)
+                _logger.info("  - move_qty_in_prod_uom (converted): %s", move_qty_in_prod_uom)
+                # Calculate ratio using same UoM
+                ratio = move_qty_in_prod_uom / self.product_qty
+                _logger.info("  - ratio: %s", ratio)
+                calculated_secondary_uom_qty = production_secondary_uom_qty * ratio
+                _logger.info("  - calculated_secondary_uom_qty (before rounding): %s", calculated_secondary_uom_qty)
+                # Round according to field precision to avoid decimal errors
+                precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                _logger.info("  - precision: %s", precision)
+                values["secondary_uom_qty"] = float_round(calculated_secondary_uom_qty, precision_digits=precision)
+                _logger.info("  - final secondary_uom_qty (after rounding): %s", values["secondary_uom_qty"])
                 else:
                     # Fallback: use direct ratio (may be inaccurate if UoMs differ)
                     ratio = move_qty / self.product_qty

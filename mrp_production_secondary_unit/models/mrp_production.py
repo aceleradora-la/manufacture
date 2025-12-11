@@ -115,13 +115,25 @@ class MrpProduction(models.Model):
                     _logger.info("  - Calculated secondary_uom_qty: %s", secondary_uom_qty)
                     # Update raw material moves to fix rounding errors
                     # This fixes the 30.01 issue when changing UoM
+                    _logger.info("  - Checking %s raw material moves", len(production.move_raw_ids))
                     for move in production.move_raw_ids:
+                        _logger.info("  - Raw move %s: product=%s, product_uom_qty=%s, secondary_uom_id=%s, secondary_uom_qty=%s", 
+                                    move.id, move.product_id.name if move.product_id else None, 
+                                    move.product_uom_qty, 
+                                    move.secondary_uom_id.id if move.secondary_uom_id else False,
+                                    move.secondary_uom_qty)
                         if move.secondary_uom_id and move.product_uom_qty:
                             # Recalculate using the helper method which includes rounding
                             recalculated_qty = move._calculate_secondary_uom_qty()
+                            _logger.info("    - Recalculated secondary_uom_qty: %s (current: %s, diff: %s)", 
+                                        recalculated_qty, move.secondary_uom_qty, abs(move.secondary_uom_qty - recalculated_qty))
                             if abs(move.secondary_uom_qty - recalculated_qty) > 0.0001:
-                                _logger.info("  - Updating raw move %s secondary_uom_qty from %s to %s", move.id, move.secondary_uom_qty, recalculated_qty)
+                                _logger.info("    - Updating raw move %s secondary_uom_qty from %s to %s", move.id, move.secondary_uom_qty, recalculated_qty)
                                 move.secondary_uom_qty = recalculated_qty
+                            else:
+                                _logger.info("    - Raw move %s secondary_uom_qty is already correct", move.id)
+                        else:
+                            _logger.info("    - Raw move %s: missing secondary_uom_id or product_uom_qty", move.id)
         return result
 
     def action_confirm(self):
@@ -130,6 +142,14 @@ class MrpProduction(models.Model):
         # Force calculation of secondary_uom_qty before creating moves
         # This ensures the computed field has the correct value when _get_move_finished_values is called
         for production in self:
+            _logger.info("MRP Production action_confirm() - Processing production %s", production.name)
+            _logger.info("  - Existing move_finished_ids: %s moves", len(production.move_finished_ids))
+            for move in production.move_finished_ids:
+                _logger.info("    - Move %s: product=%s, product_uom_qty=%s, secondary_uom_id=%s, secondary_uom_qty=%s",
+                            move.id, move.product_id.name if move.product_id else None,
+                            move.product_uom_qty,
+                            move.secondary_uom_id.id if move.secondary_uom_id else False,
+                            move.secondary_uom_qty)
             if production.secondary_uom_id and production.product_qty and production.product_uom_id:
                 _logger.info("MRP Production action_confirm() - Recalculating secondary_uom_qty for production %s", production.name)
                 # Force recalculation - this updates the computed field value in memory
@@ -147,4 +167,14 @@ class MrpProduction(models.Model):
                         if not move.secondary_uom_id and production.secondary_uom_id:
                             _logger.info("  - Setting move %s secondary_uom_id to %s", move.id, production.secondary_uom_id.id)
                             move.secondary_uom_id = production.secondary_uom_id.id
-        return super().action_confirm()
+        result = super().action_confirm()
+        _logger.info("MRP Production action_confirm() - After super(), checking moves again")
+        for production in self:
+            _logger.info("  - Production %s: %s move_finished_ids after confirm", production.name, len(production.move_finished_ids))
+            for move in production.move_finished_ids:
+                _logger.info("    - Move %s: product=%s, product_uom_qty=%s, secondary_uom_id=%s, secondary_uom_qty=%s",
+                            move.id, move.product_id.name if move.product_id else None,
+                            move.product_uom_qty,
+                            move.secondary_uom_id.id if move.secondary_uom_id else False,
+                            move.secondary_uom_qty)
+        return result
