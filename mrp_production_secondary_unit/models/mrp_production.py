@@ -94,9 +94,37 @@ class MrpProduction(models.Model):
     def write(self, vals):
         """Recalculate secondary_uom_qty when product_uom_id or product_qty changes."""
         _logger.info("MRP Production write() called with vals: %s", vals)
-        # Note: We do NOT modify move_finished_ids here to avoid interfering with Odoo's merge logic
-        # which causes the finished product to be split into two lines.
-        # Instead, we rely on _get_move_finished_values() and action_confirm() to set the correct values.
+        # If move_finished_ids is being created, ensure secondary_uom_qty is set correctly
+        # This prevents creating moves with secondary_uom_qty=0 which causes splitting
+        if 'move_finished_ids' in vals:
+            for production in self:
+                if production.secondary_uom_id and production.product_qty and production.product_id:
+                    # Calculate secondary_uom_qty for the production order
+                    production._onchange_helper_product_uom_for_secondary()
+                    production.invalidate_recordset(['secondary_uom_qty'])
+                    production_secondary_uom_qty = production.secondary_uom_qty
+                    _logger.info("MRP Production write() - Calculated production_secondary_uom_qty: %s", production_secondary_uom_qty)
+                    # Update move_finished_ids commands to include correct secondary_uom_qty
+                    for command in vals['move_finished_ids']:
+                        if isinstance(command, (list, tuple)) and len(command) >= 3:
+                            if command[0] == 0:  # create
+                                move_vals = command[2] if len(command) > 2 else {}
+                                if move_vals.get('product_id') == production.product_id.id:
+                                    # This is the main finished product
+                                    if 'secondary_uom_id' not in move_vals or not move_vals.get('secondary_uom_id'):
+                                        move_vals['secondary_uom_id'] = production.secondary_uom_id.id
+                                    # Calculate secondary_uom_qty based on move quantity
+                                    if 'product_uom_qty' in move_vals and move_vals['product_uom_qty']:
+                                        move_qty = move_vals['product_uom_qty']
+                                        if production.product_qty:
+                                            ratio = move_qty / production.product_qty
+                                            calculated_qty = production_secondary_uom_qty * ratio
+                                            precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                                            move_vals['secondary_uom_qty'] = float_round(calculated_qty, precision_digits=precision)
+                                            _logger.info("  - Set move secondary_uom_qty to %s (ratio: %s)", move_vals['secondary_uom_qty'], ratio)
+                                    elif not move_vals.get('secondary_uom_qty'):
+                                        move_vals['secondary_uom_qty'] = production_secondary_uom_qty
+                                        _logger.info("  - Set move secondary_uom_qty to %s (no product_uom_qty in move_vals)", production_secondary_uom_qty)
         result = super().write(vals)
         # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
         # and update raw material moves to fix rounding errors (e.g., 30.01 instead of 30)

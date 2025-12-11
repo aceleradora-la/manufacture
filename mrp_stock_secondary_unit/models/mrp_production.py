@@ -61,8 +61,7 @@ class MrpProduction(models.Model):
                 # Calculate secondary_uom_qty if product_uom_qty is available
                 if "product_uom_qty" in values and values["product_uom_qty"]:
                     _logger.info("MRP Production _get_move_raw_values() called for product %s", product.name if product else "Unknown")
-                    _logger.info("  - product_uom_qty (from values): %s", values["product_uom_qty"])
-                    _logger.info("  - product_uom (parameter): %s", product_uom)
+                    _logger.info("  - product_uom_qty (from values, before rounding): %s", values["product_uom_qty"])
                     # Convert product_uom to recordset if it's an ID
                     if isinstance(product_uom, (int,)):
                         product_uom_record = self.env["uom.uom"].browse(product_uom)
@@ -91,7 +90,17 @@ class MrpProduction(models.Model):
                             # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
                             precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
                             _logger.info("  - precision: %s", precision)
-                            values["secondary_uom_qty"] = float_round(calculated_qty, precision_digits=precision)
+                            rounded_qty = float_round(calculated_qty, precision_digits=precision)
+                            _logger.info("  - rounded_qty: %s", rounded_qty)
+                            # Special case: if product_uom and secondary_uom are the same, 
+                            # round product_uom_qty first to fix precision errors from Odoo's calculation
+                            if product_uom_record.id == secondary_uom_record.id and factor == 1.0:
+                                # Round product_uom_qty to fix precision errors (e.g., 30.01 -> 30.0)
+                                rounded_product_uom_qty = float_round(values["product_uom_qty"], precision_digits=precision)
+                                _logger.info("  - Same UoM detected, rounding product_uom_qty from %s to %s", values["product_uom_qty"], rounded_product_uom_qty)
+                                values["secondary_uom_qty"] = rounded_product_uom_qty
+                            else:
+                                values["secondary_uom_qty"] = rounded_qty
                             _logger.info("  - final secondary_uom_qty (after rounding): %s", values["secondary_uom_qty"])
                         else:
                             values["secondary_uom_qty"] = 0.0
