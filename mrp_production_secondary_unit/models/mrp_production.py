@@ -99,7 +99,7 @@ class MrpProduction(models.Model):
         # Instead, we rely on _get_move_finished_values() and action_confirm() to set the correct values.
         result = super().write(vals)
         # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
-        # and force save to ensure it's available when _get_move_finished_values is called
+        # and update raw material moves to fix rounding errors (e.g., 30.01 instead of 30)
         if 'product_uom_id' in vals or 'product_qty' in vals:
             for production in self:
                 _logger.info("MRP Production write() - Recalculating secondary_uom_qty for production %s", production.name)
@@ -113,6 +113,15 @@ class MrpProduction(models.Model):
                     production.invalidate_recordset(['secondary_uom_qty'])
                     secondary_uom_qty = production.secondary_uom_qty
                     _logger.info("  - Calculated secondary_uom_qty: %s", secondary_uom_qty)
+                    # Update raw material moves to fix rounding errors
+                    # This fixes the 30.01 issue when changing UoM
+                    for move in production.move_raw_ids:
+                        if move.secondary_uom_id and move.product_uom_qty:
+                            # Recalculate using the helper method which includes rounding
+                            recalculated_qty = move._calculate_secondary_uom_qty()
+                            if abs(move.secondary_uom_qty - recalculated_qty) > 0.0001:
+                                _logger.info("  - Updating raw move %s secondary_uom_qty from %s to %s", move.id, move.secondary_uom_qty, recalculated_qty)
+                                move.secondary_uom_qty = recalculated_qty
         return result
 
     def action_confirm(self):
@@ -130,36 +139,12 @@ class MrpProduction(models.Model):
                 # Read the value to ensure it's in cache and trigger recalculation if needed
                 secondary_uom_qty = production.secondary_uom_qty
                 _logger.info("  - secondary_uom_qty after recalculation: %s", secondary_uom_qty)
-                # Update existing moves if they were created with wrong values
-                # This happens when quantity was changed before saving
-                _logger.info("  - Checking existing moves: %s moves found", len(production.move_finished_ids))
+                # DO NOT update existing moves here - this causes move splitting
+                # The values should already be set correctly by _get_move_finished_values()
+                # Only set secondary_uom_id if completely missing (shouldn't happen)
                 for move in production.move_finished_ids:
-                    _logger.info("  - Move %s: product_id=%s, production.product_id=%s, secondary_uom_id=%s, secondary_uom_qty=%s, product_uom_qty=%s", 
-                                move.id, move.product_id.id if move.product_id else False, 
-                                production.product_id.id if production.product_id else False,
-                                move.secondary_uom_id.id if move.secondary_uom_id else False,
-                                move.secondary_uom_qty, move.product_uom_qty)
                     if move.product_id == production.product_id:
-                        # Set secondary_uom_id if missing
                         if not move.secondary_uom_id and production.secondary_uom_id:
                             _logger.info("  - Setting move %s secondary_uom_id to %s", move.id, production.secondary_uom_id.id)
                             move.secondary_uom_id = production.secondary_uom_id.id
-                        # Recalculate secondary_uom_qty for the move based on current production values
-                        if production.secondary_uom_id and production.product_qty and move.product_uom_qty:
-                            ratio = move.product_uom_qty / production.product_qty
-                            calculated_qty = secondary_uom_qty * ratio
-                            # Round according to field precision to avoid decimal errors
-                            precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
-                            move_secondary_uom_qty = float_round(calculated_qty, precision_digits=precision)
-                            _logger.info("  - Calculated move secondary_uom_qty: %s (ratio: %s, current: %s)", 
-                                        move_secondary_uom_qty, ratio, move.secondary_uom_qty)
-                            if abs(move.secondary_uom_qty - move_secondary_uom_qty) > 0.01:
-                                _logger.info("  - Updating move %s secondary_uom_qty from %s to %s", move.id, move.secondary_uom_qty, move_secondary_uom_qty)
-                                move.secondary_uom_qty = move_secondary_uom_qty
-                            else:
-                                _logger.info("  - Move %s secondary_uom_qty is already correct", move.id)
-                        else:
-                            _logger.info("  - Move %s: missing secondary_uom_id, product_qty or move.product_uom_qty", move.id)
-                    else:
-                        _logger.info("  - Move %s: not main product", move.id)
         return super().action_confirm()
