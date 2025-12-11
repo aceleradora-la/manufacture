@@ -2,6 +2,7 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
 from odoo import api, fields, models
+from odoo.tools.float_utils import float_round
 
 
 class StockMove(models.Model):
@@ -53,8 +54,9 @@ class StockMove(models.Model):
             base_qty, secondary_uom_record
         )
         
-        # Step 3: Apply factor
-        return converted_qty * factor
+        # Step 3: Apply factor and round according to field precision
+        precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+        return float_round(converted_qty * factor, precision_digits=precision)
 
     @api.onchange("product_id")
     def _onchange_product_id_secondary_unit(self):

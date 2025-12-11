@@ -4,6 +4,7 @@
 import logging
 
 from odoo import models
+from odoo.tools.float_utils import float_round
 
 _logger = logging.getLogger(__name__)
 
@@ -78,7 +79,9 @@ class MrpProduction(models.Model):
                             converted_qty = product_base_uom._compute_quantity(
                                 base_qty, secondary_uom_record
                             )
-                            values["secondary_uom_qty"] = converted_qty * factor
+                            # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
+                            precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                            values["secondary_uom_qty"] = float_round(converted_qty * factor, precision_digits=precision)
                         else:
                             values["secondary_uom_qty"] = 0.0
                     # Fallback: try direct conversion if categories match
@@ -86,7 +89,9 @@ class MrpProduction(models.Model):
                         converted_qty = product_uom_record._compute_quantity(
                             values["product_uom_qty"], secondary_uom_record
                         )
-                        values["secondary_uom_qty"] = converted_qty * factor
+                        # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
+                        precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                        values["secondary_uom_qty"] = float_round(converted_qty * factor, precision_digits=precision)
                     else:
                         values["secondary_uom_qty"] = 0.0
         return values
@@ -160,14 +165,18 @@ class MrpProduction(models.Model):
                     # Calculate ratio using same UoM
                     ratio = move_qty_in_prod_uom / self.product_qty
                     calculated_secondary_uom_qty = production_secondary_uom_qty * ratio
-                    _logger.info("  - Calculated ratio: %s, final secondary_uom_qty: %s", ratio, calculated_secondary_uom_qty)
-                    values["secondary_uom_qty"] = calculated_secondary_uom_qty
+                    # Round according to field precision to avoid decimal errors
+                    precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                    values["secondary_uom_qty"] = float_round(calculated_secondary_uom_qty, precision_digits=precision)
+                    _logger.info("  - Calculated ratio: %s, final secondary_uom_qty: %s", ratio, values["secondary_uom_qty"])
                 else:
                     # Fallback: use direct ratio (may be inaccurate if UoMs differ)
                     ratio = move_qty / self.product_qty
                     calculated_secondary_uom_qty = production_secondary_uom_qty * ratio
-                    _logger.info("  - Fallback ratio: %s, final secondary_uom_qty: %s", ratio, calculated_secondary_uom_qty)
-                    values["secondary_uom_qty"] = calculated_secondary_uom_qty
+                    # Round according to field precision to avoid decimal errors
+                    precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                    values["secondary_uom_qty"] = float_round(calculated_secondary_uom_qty, precision_digits=precision)
+                    _logger.info("  - Fallback ratio: %s, final secondary_uom_qty: %s", ratio, values["secondary_uom_qty"])
             else:
                 _logger.warning("  - production_secondary_uom_qty is 0 or product_qty is 0, setting secondary_uom_qty to 0")
                 values["secondary_uom_qty"] = 0.0
@@ -204,7 +213,9 @@ class MrpProduction(models.Model):
                             converted_qty = product_base_uom._compute_quantity(
                                 base_qty, secondary_uom_record
                             )
-                            values["secondary_uom_qty"] = converted_qty * factor
+                            # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
+                            precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                            values["secondary_uom_qty"] = float_round(converted_qty * factor, precision_digits=precision)
                         else:
                             values["secondary_uom_qty"] = 0.0
                     # Fallback: try direct conversion if categories match
@@ -212,7 +223,9 @@ class MrpProduction(models.Model):
                         converted_qty = product_uom_record._compute_quantity(
                             values["product_uom_qty"], secondary_uom_record
                         )
-                        values["secondary_uom_qty"] = converted_qty * factor
+                        # Round according to field precision to avoid decimal errors (e.g., 30.01 instead of 30)
+                        precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                        values["secondary_uom_qty"] = float_round(converted_qty * factor, precision_digits=precision)
                     else:
                         values["secondary_uom_qty"] = 0.0
                 else:

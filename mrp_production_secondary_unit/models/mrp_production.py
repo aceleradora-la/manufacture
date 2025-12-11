@@ -4,6 +4,7 @@
 import logging
 
 from odoo import api, fields, models
+from odoo.tools.float_utils import float_round
 
 _logger = logging.getLogger(__name__)
 
@@ -93,49 +94,9 @@ class MrpProduction(models.Model):
     def write(self, vals):
         """Recalculate secondary_uom_qty when product_uom_id or product_qty changes."""
         _logger.info("MRP Production write() called with vals: %s", vals)
-        # If move_finished_ids is being created/updated, ensure secondary_uom_qty is set correctly
-        if 'move_finished_ids' in vals:
-            for production in self:
-                if production.secondary_uom_id and production.product_qty and production.product_id:
-                    # Calculate secondary_uom_qty directly using the values from vals
-                    # This avoids modifying the record which could cause moves to be deleted
-                    product_qty = vals.get('product_qty', production.product_qty)
-                    product_uom_id = vals.get('product_uom_id', production.product_uom_id.id if production.product_uom_id else False)
-                    if product_uom_id:
-                        # Get UoM record
-                        product_uom = self.env['uom.uom'].browse(product_uom_id)
-                        # Calculate secondary_uom_qty directly (similar to mixin logic)
-                        factor = production.secondary_uom_id.factor
-                        secondary_uom_record = production.secondary_uom_id.uom_id
-                        product_base_uom = production.product_id.uom_id
-                        # Convert from production UoM to product's base UoM
-                        if product_uom.category_id == product_base_uom.category_id:
-                            base_qty = product_uom._compute_quantity(product_qty, product_base_uom)
-                            # Convert from product's base UoM to secondary UoM base, then apply factor
-                            if product_base_uom.category_id == secondary_uom_record.category_id:
-                                converted_qty = product_base_uom._compute_quantity(base_qty, secondary_uom_record)
-                                production_secondary_uom_qty = converted_qty * factor
-                            else:
-                                production_secondary_uom_qty = 0.0
-                        else:
-                            production_secondary_uom_qty = 0.0
-                        _logger.info("MRP Production write() - Updating move_finished_ids with secondary_uom_qty: %s (calculated from product_uom_id: %s)", production_secondary_uom_qty, product_uom_id)
-                    # Update move_finished_ids to include correct secondary_uom_qty
-                    for command in vals['move_finished_ids']:
-                        if isinstance(command, (list, tuple)) and len(command) >= 3:
-                            if command[0] in (0, 1):  # create or update
-                                move_vals = command[2] if len(command) > 2 else {}
-                                if 'secondary_uom_id' not in move_vals or not move_vals.get('secondary_uom_id'):
-                                    move_vals['secondary_uom_id'] = production.secondary_uom_id.id
-                                # Calculate secondary_uom_qty for the move based on its quantity
-                                if 'product_uom_qty' in move_vals and move_vals['product_uom_qty']:
-                                    move_qty = move_vals['product_uom_qty']
-                                    if production.product_qty:
-                                        ratio = move_qty / production.product_qty
-                                        move_vals['secondary_uom_qty'] = production_secondary_uom_qty * ratio
-                                        _logger.info("  - Updated move secondary_uom_qty: %s (ratio: %s)", move_vals['secondary_uom_qty'], ratio)
-                                elif not move_vals.get('secondary_uom_qty'):
-                                    move_vals['secondary_uom_qty'] = production_secondary_uom_qty
+        # Note: We do NOT modify move_finished_ids here to avoid interfering with Odoo's merge logic
+        # which causes the finished product to be split into two lines.
+        # Instead, we rely on _get_move_finished_values() and action_confirm() to set the correct values.
         result = super().write(vals)
         # If product_uom_id or product_qty changed, recalculate secondary_uom_qty
         # and force save to ensure it's available when _get_move_finished_values is called
@@ -186,7 +147,10 @@ class MrpProduction(models.Model):
                         # Recalculate secondary_uom_qty for the move based on current production values
                         if production.secondary_uom_id and production.product_qty and move.product_uom_qty:
                             ratio = move.product_uom_qty / production.product_qty
-                            move_secondary_uom_qty = secondary_uom_qty * ratio
+                            calculated_qty = secondary_uom_qty * ratio
+                            # Round according to field precision to avoid decimal errors
+                            precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+                            move_secondary_uom_qty = float_round(calculated_qty, precision_digits=precision)
                             _logger.info("  - Calculated move secondary_uom_qty: %s (ratio: %s, current: %s)", 
                                         move_secondary_uom_qty, ratio, move.secondary_uom_qty)
                             if abs(move.secondary_uom_qty - move_secondary_uom_qty) > 0.01:
